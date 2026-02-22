@@ -7,13 +7,13 @@ export class MemoryService {
      * Recupera el historial de chat para una sesión desde PostgreSQL
      * convirtiéndolo a mensajes de LangChain
      */
-    async getChatHistory(idUserChat: string): Promise<BaseMessage[]> {
+    async getChatHistory(sessionId: string): Promise<BaseMessage[]> {
         const db = getPrisma();
-        console.log(`[MemoryService] Loading chat history for: ${idUserChat}`);
+        console.log(`[MemoryService] Loading chat history for: ${sessionId}`);
 
         try {
             const mensajes = await db.prueba_mensajesllms.findMany({
-                where: { session_id: idUserChat },
+                where: { session_id: sessionId },
                 orderBy: { id: 'asc' }
             });
 
@@ -38,7 +38,7 @@ export class MemoryService {
             return langChainMessages;
 
         } catch (error) {
-            console.error(`[MemoryService] Error fetching history for ${idUserChat}:`, error);
+            console.error(`[MemoryService] Error fetching history for ${sessionId}:`, error);
             return []; // Retorna historial vacío en caso de error para no quebrar el flujo
         }
     }
@@ -46,15 +46,15 @@ export class MemoryService {
     /**
      * Recupera el documento/texto preprocesado desde la tabla de documentos
      */
-    async getDocumentContext(idUserChat: string): Promise<string> {
+    async getDocumentContext(sessionId: string): Promise<string> {
         const db = getPrisma();
         try {
             const doc = await db.prueba_chatsllms.findFirst({
-                where: { id_user_chat: idUserChat }
+                where: { session_id: sessionId }
             });
             return doc?.systemprompt_doc || '';
         } catch (error) {
-            console.error(`[MemoryService] Error fetching document context for ${idUserChat}:`, error);
+            console.error(`[MemoryService] Error fetching document context for ${sessionId}:`, error);
             return '';
         }
     }
@@ -62,7 +62,7 @@ export class MemoryService {
     /**
      * Guarda un nuevo mensaje (Humano o AI) en PostgreSQL
      */
-    async saveMessage(idUserChat: string, type: 'human' | 'ai' | 'system', content: string) {
+    async saveMessage(sessionId: string, type: 'human' | 'ai' | 'system', content: string) {
         const db = getPrisma();
 
         try {
@@ -74,14 +74,14 @@ export class MemoryService {
 
             await db.prueba_mensajesllms.create({
                 data: {
-                    session_id: idUserChat,
+                    session_id: sessionId,
                     message: messageJson
                 }
             });
 
             console.log(`[MemoryService] Message (${type}) saved successfully to DB.`);
         } catch (error) {
-            console.error(`[MemoryService] Error saving ${type} message for ${idUserChat}:`, error);
+            console.error(`[MemoryService] Error saving ${type} message for ${sessionId}:`, error);
         }
     }
 }

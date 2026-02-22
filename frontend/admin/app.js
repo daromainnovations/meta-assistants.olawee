@@ -137,24 +137,37 @@ const modalMeta = document.getElementById('modalMeta');
 const modalIcon = document.getElementById('modalIcon');
 
 function openModal(execId) {
-    const exec = globalExecutions.find(e => e.id === execId);
-    if (!exec) return;
+    console.log("Intentando abrir modal para ID:", execId);
+    try {
+        const exec = globalExecutions.find(e => e.id === execId || e.id == execId);
+        if (!exec) {
+            console.error("No se encontró la ejecución en globalExecutions con ID:", execId);
+            alert("No se pudo encontrar la ejecución con ID: " + execId);
+            return;
+        }
 
-    // Configurar metadatos
-    modalMeta.innerText = `Exec ID: ${exec.id} | Grabado en BD: Supabase (qan8n2.0)`;
-    modalIcon.innerText = exec.status === 'SUCCESS' ? '✅' : '💥';
+        // Configurar metadatos
+        modalMeta.innerText = `Exec ID: ${exec.id} | Grabado en BD: Supabase (qan8n2.0)`;
+        modalIcon.innerText = exec.status === 'SUCCESS' ? '✅' : '💥';
 
-    // Configurar JSON
-    // El stringify con ", null, 2" formatea bonito el json con tabulaciones
-    inputCode.textContent = JSON.stringify(exec.input || {}, null, 2);
-    outputCode.textContent = JSON.stringify(exec.output || {}, null, 2);
+        // Configurar JSON
+        inputCode.textContent = JSON.stringify(exec.input || {}, null, 2);
+        outputCode.textContent = JSON.stringify(exec.output || {}, null, 2);
 
-    // Llamar a la librería Prism para que ponga colorcitos mágicos al código
-    Prism.highlightElement(inputCode);
-    Prism.highlightElement(outputCode);
+        // Llamar a la librería Prism
+        if (window.Prism) {
+            Prism.highlightElement(inputCode);
+            Prism.highlightElement(outputCode);
+        } else {
+            console.warn("PrismJS no está cargado. Omitiendo coloreado de sintaxis.");
+        }
 
-    // Mostrar
-    modal.classList.remove('hidden');
+        // Mostrar
+        modal.classList.remove('hidden');
+    } catch (err) {
+        console.error("Error dentro de openModal:", err);
+        alert("Ocurrió un error al intentar abrir el modal: " + err.message);
+    }
 }
 
 function closeModal() {

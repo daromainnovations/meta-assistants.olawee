@@ -315,15 +315,23 @@ Genera ÚNICAMENTE la publicación terminada. Si es Instagram/LinkedIn, usa Emoj
         });
     }
 
-    // Helper para retornar todas juntas en un array inyectable
-    getAllTools() {
-        return [
-            this.getFacturasTool(),
-            this.getImpuestosTool(),
-            this.getContratosTool(),
-            this.getMarketingTool(),
-            this.getCuadrantesTool()
+    // Helper para retornar segmentado según el array recibido
+    getAllTools(toolIds: number[] = []) {
+        const all = [
+            { id: 1, tool: this.getFacturasTool() },
+            { id: 2, tool: this.getImpuestosTool() },
+            { id: 3, tool: this.getContratosTool() },
+            { id: 4, tool: this.getMarketingTool() },
+            { id: 5, tool: this.getCuadrantesTool() }
         ];
+
+        // Si viene vacío, no se inyecta ninguna herramienta extra al Pymes Agent.
+        if (toolIds.length === 0) {
+            return [];
+        }
+
+        // Si vienen IDs, filtramos y devolvemos solo esas.
+        return all.filter(t => toolIds.includes(t.id)).map(t => t.tool);
     }
 }
 

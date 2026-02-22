@@ -15,7 +15,8 @@ export class AssistantHandlerService {
         systemPrompt: string,
         modelStr: string,
         historyPayload: any[],
-        documentContext: string
+        documentContext: string,
+        toolsArray: number[] = []
     ): Promise<any> {
         console.log(`\n[AssistantHandler] ▶ Start processing for Assistant (Model: '${modelStr}') - Session '${sessionId}'`);
 

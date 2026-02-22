@@ -1,12 +1,12 @@
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
 export interface ChatMessageData {
-    user_prompt?: string;
+    chatInput?: string;
     message?: string;
     query?: string;
     system_prompt?: string; // Prompt de sistema manual
-    ai_model: string;
-    id_user_chat: string;
+    model: string;
+    session_id: string;
     history?: any[];
 }
 

@@ -15,7 +15,8 @@ export class PymesHandlerService {
         systemPrompt: string,
         modelStr: string,
         historyPayload: any[],
-        documentContext: string
+        documentContext: string,
+        toolsArray: number[] = []
     ): Promise<any> {
         console.log(`\n[PymesHandler] ▶ Start processing for PYMES Assistant (Model: '${modelStr}') - Session '${sessionId}'`);
 
@@ -26,7 +27,7 @@ export class PymesHandlerService {
             // 2. Conectar Herramientas Base (Internet, Wikipedia) + Nuevas Tools (Pymes)
             let finalModel = model as any;
             const externalTools = toolExecutorService.getTools();
-            const pymesTools = pymesToolsService.getAllTools();
+            const pymesTools = pymesToolsService.getAllTools(toolsArray);
             const allTools = [...externalTools, ...pymesTools];
 
             if (allTools.length > 0) {

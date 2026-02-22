@@ -10,15 +10,15 @@ export class ChatHandlerService {
      * Proceso Principal del LangChain Agente LLM
      */
     async processMessage(provider: string, messageData: ChatMessageData, systemContext?: string): Promise<ChatResult> {
-        console.log(`\n[ChatHandler] ▶ Start processing model '${messageData.ai_model}' via provider '${provider}'`);
+        console.log(`\n[ChatHandler] ▶ Start processing model '${messageData.model}' via provider '${provider}'`);
 
         // Normalizar entrada
-        const userMessageContent = messageData.user_prompt || messageData.message || messageData.query || "No message provided";
-        const idUserChat = messageData.id_user_chat || "default_session";
+        const userMessageContent = messageData.chatInput || messageData.message || messageData.query || "No message provided";
+        const idUserChat = messageData.session_id || "default_session";
 
         try {
             // 1. Obtener Instancia de Modelo LangChain Configurado
-            const model = aiProviderService.getModel(provider, messageData.ai_model);
+            const model = aiProviderService.getModel(provider, messageData.model);
 
             // 2. Obtener Tools Base Dinámicas e Inyectarlas al Modelo
             const tools = toolExecutorService.getTools();

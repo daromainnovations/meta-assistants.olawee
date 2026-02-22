@@ -20,7 +20,7 @@ export class DocumentService {
      * Procesa un documento recibido:
      * 1. Identifica el tipo de archivo y lo transcribe.
      * 2. Gestiona el guardado en la tabla 'prueba_chatsllms'.
-     *    - Busca por 'id_user_chat'.
+     *    - Busca por 'session_id'.
      *    - Si 'systemprompt_doc' está vacío, inserta la transcripción.
      *    - Si ya tiene contenido, concatena el antiguo con el nuevo.
      * 3. Devuelve la transcripción para ser usada como contexto.
@@ -57,9 +57,9 @@ export class DocumentService {
 
             let finalPrompt = '';
             // 2. Gestionar guardado en 'prueba_chatsllms' o 'prueba_chatsassistants'
-            const idUserChat = meta?.id_user_chat || meta?.idUserChat || meta?.userId;
+            const sessionId = meta?.session_id || meta?.sessionId || meta?.userId;
 
-            if (idUserChat) {
+            if (sessionId) {
                 try {
                     const db = getPrisma();
                     const isAssistant = provider === 'assistant' || provider === 'pymes-assistant';
@@ -67,17 +67,17 @@ export class DocumentService {
 
                     // Buscar si ya existe una fila para este usuario
                     const existingChat = await (dbTable as any).findFirst({
-                        where: { id_user_chat: idUserChat }
+                        where: { session_id: sessionId }
                     });
 
                     if (existingChat && existingChat.systemprompt_doc) {
                         // Si ya tiene contenido, concatenamos
                         finalPrompt = `${existingChat.systemprompt_doc}\n\n${newContent}`;
-                        console.log(`[DocumentService] Appending new content to existing prompt for ${idUserChat} (Table: ${isAssistant ? 'prueba_chatsassistants' : 'prueba_chatsllms'})`);
+                        console.log(`[DocumentService] Appending new content to existing prompt for ${sessionId} (Table: ${isAssistant ? 'prueba_chatsassistants' : 'prueba_chatsllms'})`);
                     } else {
                         // Si está vacío o no existe la fila, es el primer contenido
                         finalPrompt = newContent;
-                        console.log(`[DocumentService] Setting initial prompt for ${idUserChat} (Table: ${isAssistant ? 'prueba_chatsassistants' : 'prueba_chatsllms'})`);
+                        console.log(`[DocumentService] Setting initial prompt for ${sessionId} (Table: ${isAssistant ? 'prueba_chatsassistants' : 'prueba_chatsllms'})`);
                     }
 
                     // Actualizar o crear la fila (Find First & Create or Update)
@@ -91,8 +91,8 @@ export class DocumentService {
                         });
                     } else {
                         const createData: any = {
-                            id_user_chat: idUserChat,
-                            titulo: idUserChat, // Optional placeholder
+                            session_id: sessionId,
+                            titulo: sessionId, // Optional placeholder
                             systemprompt_doc: finalPrompt
                         };
                         if (isAssistant && meta?.id_assistant) createData.id_assistant = meta.id_assistant;
@@ -110,7 +110,7 @@ export class DocumentService {
                     finalPrompt = newContent; // Fallback to just new content on db error
                 }
             } else {
-                console.warn('[DocumentService] ⚠️ No idUserChat provided, skipping DB update.');
+                console.warn('[DocumentService] ⚠️ No sessionId provided, skipping DB update.');
                 finalPrompt = newContent;
             }
 

@@ -21,22 +21,33 @@ export class WebhookService {
     async handleIncomingRequest(provider: string, body: any, file?: Express.Multer.File): Promise<any> {
         console.log(`[WebhookService] Handling request for ${provider}`);
 
+        let parsedTools: number[] = [];
+        if (body.tools) {
+            try {
+                const arr = (typeof body.tools === 'string') ? JSON.parse(body.tools) : body.tools;
+                if (Array.isArray(arr)) parsedTools = arr.map(Number).filter(n => !isNaN(n));
+                else parsedTools = [Number(arr)].filter(n => !isNaN(n));
+            } catch {
+                parsedTools = [];
+            }
+        }
+
         // Simula el nodo 'Edit Fields' de n8n para mapear las variables
         const transformedBody = {
-            ...body,
-            user_prompt: body.chatInput || body.user_prompt,
-            ai_model: body.model,
-            id_user_chat: body.session_id,
+            chatInput: body.chatInput,
+            model: body.model,
+            session_id: body.session_id,
             id_assistant: body.id_assistant || body.assistant_id,
             systemprompt_doc: body.systemprompt_doc, // Contexto devuelto si se sube archivo
             systemPrompt: body.systemPrompt,         // Prompt duro del asistente
             history: body.history || [],
+            tools: parsedTools
         };
 
         // 👻 LANZAMIENTO DEL TRABAJO DE FONDO: Autonaming del Título ("Fire and Forget")
         // No colocamos 'await', permitiendo que Node.js mueva esto a un segundo hilo sin bloquear al usuario
-        if (transformedBody.user_prompt) {
-            titleGeneratorAutomation.generateTitleAsync(transformedBody.id_user_chat, transformedBody.user_prompt, provider, transformedBody.id_assistant).catch((e: any) => {
+        if (transformedBody.chatInput) {
+            titleGeneratorAutomation.generateTitleAsync(transformedBody.session_id, transformedBody.chatInput, provider, transformedBody.id_assistant).catch((e: any) => {
                 console.error("[TitleGenerator] Background error:", e);
             });
         }
@@ -65,23 +76,23 @@ export class WebhookService {
         let result: any;
         try {
             if (provider === 'assistant') {
-                if (!transformedBody.ai_model || !transformedBody.systemPrompt) {
+                if (!transformedBody.model || !transformedBody.systemPrompt) {
                     result = { status: 'error', message: 'Se requiere model y systemPrompt en el payload para usar el sistema de Asistentes.' };
                 } else {
-                    console.log(`[WebhookService] Routing to ASSISTANT Handler (${transformedBody.ai_model})`);
+                    console.log(`[WebhookService] Routing to ASSISTANT Handler (${transformedBody.model})`);
                     result = await assistantHandlerService.processMessage(
-                        transformedBody.id_user_chat, transformedBody.user_prompt, transformedBody.systemPrompt,
-                        transformedBody.ai_model, transformedBody.history, finalDocumentContext
+                        transformedBody.session_id, transformedBody.chatInput, transformedBody.systemPrompt,
+                        transformedBody.model, transformedBody.history, finalDocumentContext, transformedBody.tools
                     );
                 }
             } else if (provider === 'pymes-assistant') {
-                if (!transformedBody.ai_model || !transformedBody.systemPrompt) {
+                if (!transformedBody.model || !transformedBody.systemPrompt) {
                     result = { status: 'error', message: 'Se requiere model y systemPrompt para Pymes.' };
                 } else {
-                    console.log(`[WebhookService] Routing to PYMES ASSISTANT Handler (${transformedBody.ai_model})`);
+                    console.log(`[WebhookService] Routing to PYMES ASSISTANT Handler (${transformedBody.model})`);
                     result = await pymesHandlerService.processMessage(
-                        transformedBody.id_user_chat, transformedBody.user_prompt, transformedBody.systemPrompt,
-                        transformedBody.ai_model, transformedBody.history, finalDocumentContext
+                        transformedBody.session_id, transformedBody.chatInput, transformedBody.systemPrompt,
+                        transformedBody.model, transformedBody.history, finalDocumentContext, transformedBody.tools
                     );
                 }
             } else {

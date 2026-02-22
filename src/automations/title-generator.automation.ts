@@ -7,8 +7,8 @@ export class TitleGeneratorAutomation {
      * Tarea en segundo plano ("Fire and Forget") que genera un título 
      * para la conversación si aún no lo tiene. Se independiza del flujo principal.
      */
-    async generateTitleAsync(idUserChat: string, firstMessage: string, provider: string, idAssistant?: string) {
-        if (!idUserChat || !firstMessage || firstMessage.trim() === '') return;
+    async generateTitleAsync(sessionId: string, firstMessage: string, provider: string, idAssistant?: string) {
+        if (!sessionId || !firstMessage || firstMessage.trim() === '') return;
 
         try {
             const db = getPrisma();
@@ -17,18 +17,18 @@ export class TitleGeneratorAutomation {
 
             // 1. Buscar la sesión en base de datos
             const chatRow = await (dbTable as any).findFirst({
-                where: { id_user_chat: idUserChat }
+                where: { session_id: sessionId }
             });
 
             // Si ya existe la fila y su título no es igual al id (que es el fallback default)
             // y tampoco está vacío, significa que ya le generamos un título antes.
-            if (chatRow && chatRow.titulo && chatRow.titulo !== idUserChat && chatRow.titulo.trim() !== '') {
+            if (chatRow && chatRow.titulo && chatRow.titulo !== sessionId && chatRow.titulo.trim() !== '') {
                 // Ya tiene un título custom generado, el job se "suicida" silenciosamente :)
-                console.log(`[TitleGeneratorJob] 💤 Session '${idUserChat}' already has a title: "${chatRow.titulo}". Skipping.`);
+                console.log(`[TitleGeneratorJob] 💤 Session '${sessionId}' already has a title: "${chatRow.titulo}". Skipping.`);
                 return;
             }
 
-            console.log(`[TitleGeneratorJob] 🚀 Generating new title for session '${idUserChat}' in background...`);
+            console.log(`[TitleGeneratorJob] 🚀 Generating new title for session '${sessionId}' in background...`);
 
             // 2. Instanciar un modelo ultra rápido y barato (Gemini 2.0 Flash) independientemente de qué modelo use el usuario.
             const model = new ChatGoogleGenerativeAI({
@@ -61,7 +61,7 @@ export class TitleGeneratorAutomation {
                 });
             } else {
                 const createData: any = {
-                    id_user_chat: idUserChat,
+                    session_id: sessionId,
                     titulo: newTitle,
                     systemprompt_doc: ''
                 };
@@ -71,7 +71,7 @@ export class TitleGeneratorAutomation {
                 });
             }
 
-            console.log(`[TitleGeneratorJob] ✅ Title updated in database for session '${idUserChat}'.`);
+            console.log(`[TitleGeneratorJob] ✅ Title updated in database for session '${sessionId}'.`);
 
         } catch (error: any) {
             console.error(`[TitleGeneratorJob] ⚠️ Error generating title: ${error.message}`);
