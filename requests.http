@@ -1,0 +1,94 @@
+@baseUrl = http://localhost:3000
+@apiKey = sk_webhook_secret_12345
+
+### 1. OpenAI Chat Webhook
+POST {{baseUrl}}/openai-chat
+Content-Type: application/json
+x-api-key: {{apiKey}}
+
+{
+  "message": "Hola OpenAI, esto es una prueba",
+  "model": "gpt-4"
+}
+
+### 2. Gemini Chat Webhook
+POST {{baseUrl}}/gemini-chat
+Content-Type: application/json
+x-api-key: {{apiKey}}
+
+{
+  "message": "Hola Gemini, probando webhook",
+  "model": "gemini-pro"
+}
+
+### 3. Anthropic Chat Webhook
+POST {{baseUrl}}/anthropic-chat
+Content-Type: application/json
+x-api-key: {{apiKey}}
+
+{
+  "message": "Hola Claude, confirmando recepción",
+  "model": "claude-3-opus"
+}
+
+### 4. Mistrall Chat Webhook
+POST {{baseUrl}}/mistrall-chat
+Content-Type: application/json
+x-api-key: {{apiKey}}
+
+{
+  "message": "Hola Mistral, test de ruta",
+  "model": "mistral-large"
+}
+
+### 5. Deepseek Chat Webhook
+POST {{baseUrl}}/deepseek-chat
+Content-Type: application/json
+x-api-key: {{apiKey}}
+
+{
+  "message": "Hola Deepseek, verificando conexión",
+  "model": "deepseek-chat"
+}
+
+### 6. Assistant Webhook
+POST {{baseUrl}}/assistant-chat
+Content-Type: application/json
+x-api-key: {{apiKey}}
+
+{
+  "query": "Necesito ayuda con mi cuenta",
+  "assistantId": "asst_123456"
+}
+
+### 7. File Upload Analysis (Test 1: PDF/Text)
+POST {{baseUrl}}/openai-chat
+Content-Type: multipart/form-data; boundary=boundary
+x-api-key: {{apiKey}}
+
+--boundary
+Content-Disposition: form-data; name="idUserChat"
+
+user_test_concatenation
+--boundary
+Content-Disposition: form-data; name="file"; filename="documento1.txt"
+Content-Type: text/plain
+
+Contenido del primer documento.
+--boundary--
+
+### 8. File Upload Analysis (Test 2: Image/PDF - Ver Concat)
+POST {{baseUrl}}/openai-chat
+Content-Type: multipart/form-data; boundary=boundary
+x-api-key: {{apiKey}}
+
+--boundary
+Content-Disposition: form-data; name="idUserChat"
+
+user_test_concatenation
+--boundary
+Content-Disposition: form-data; name="file"; filename="documento2.txt"
+Content-Type: text/plain
+
+Contenido del segundo documento que se debe concatenar.
+--boundary--

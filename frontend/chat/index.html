@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Espacio de Pruebas: Agente IA OLAWEE</title>
+    <!-- Tailwind CSS (CDN para rapidez y no complicar el proyecto con build tools extras) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-gray-700 shadow-lg p-4 sticky top-0 z-10">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-500 text-white p-2 rounded-lg">
+                    <i class="fa-solid fa-robot text-xl"></i>
+                </div>
+                <div>
+                    <h1
+                        class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+                        OLAWEE QA Agent
+                    </h1>
+                    <p class="text-xs text-gray-400">Entorno Frontend Físico de Pruebas</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4 text-sm">
+                <div class="flex flex-col items-end">
+                    <span class="text-gray-400 text-xs">Session ID</span>
+                    <input type="text" id="sessionId" value="mi_sesion_frontend_1"
+                        class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white w-32 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="flex flex-col items-end">
+                    <span class="text-gray-400 text-xs">Modelo</span>
+                    <select id="modelSelect"
+                        class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white focus:outline-none focus:border-indigo-500">
+                        <option value="gpt-4o">GPT-4o (OpenAI)</option>
+                        <option value="gpt-5">GPT-5 (OpenAI)</option>
+                        <option value="gpt-5.1">GPT-5.1 (OpenAI)</option>
+                        <option value="gpt-5.2">GPT-5.2 (OpenAI)</option>
+                        <option value="gemini-3-pro">Gemini 3 Pro</option>
+                        <option value="gemini-3-flash">Gemini 3 Flash</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                        <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                        <option value="claude-3-5-sonnet-20240620">Claude 3.5 Sonnet</option>
+                        <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+                        <option value="mistral-large-latest">Mistral Large</option>
+                        <option value="open-mixtral-8x22b">Mixtral 8x22b</option>
+                        <option value="deepseek-chat">DeepSeek Chat</option>
+                        <option value="deepseek-reasoner">DeepSeek Reasoner</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Chat Area -->
+    <main class="flex-grow flex flex-col max-w-4xl mx-auto w-full p-4 relative">
+
+        <!-- Welcome Message -->
+        <div id="chatMessages" class="flex-grow overflow-y-auto w-full flex flex-col gap-4 pb-32 hide-scrollbar">
+
+            <div
+                class="chat-message message-ai flex gap-4 p-4 rounded-xl bg-gray-800 shadow shadow-indigo-500/10 border border-gray-700/50 mr-12">
+                <div class="flex-shrink-0 mt-1">
+                    <div
+                        class="w-8 h-8 rounded bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                        <i class="fa-solid fa-robot text-white text-sm"></i>
+                    </div>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-xs text-indigo-400 font-semibold mb-1">Agente OLAWEE</span>
+                    <div class="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">¡Hola! Soy tu Agente
+                        LangChain. Prueba a enviarme mensajes normales o sube un documento PDF/TXT para proporcionarme
+                        contexto antes de hablar.</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Input Area (Fixed at bottom) -->
+        <div class="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 p-4 pb-6">
+            <div
+                class="max-w-4xl mx-auto relative flex items-center gap-2 bg-gray-800 p-2 rounded-2xl border border-gray-700 shadow-xl focus-within:border-indigo-500 transition-colors">
+
+                <!-- File Upload Button -->
+                <label for="fileInput"
+                    class="cursor-pointer text-gray-400 hover:text-indigo-400 transition-colors p-3 rounded-xl hover:bg-gray-700 flex-shrink-0"
+                    title="Subir archivo o imagen de contexto">
+                    <i class="fa-solid fa-paperclip text-lg"></i>
+                    <input type="file" id="fileInput" class="hidden"
+                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt,.csv,.xlsx">
+                </label>
+
+                <!-- Attached File Preview Bubble -->
+                <div id="filePreview"
+                    class="hidden absolute -top-12 left-4 bg-gray-800 border border-indigo-500/30 text-indigo-300 text-xs px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-lg z-20">
+                    <i class="fa-solid fa-file-alt"></i>
+                    <span id="fileName" class="max-w-[150px] truncate">documento.pdf</span>
+                    <button id="removeFileBtn" class="hover:text-red-400 ml-1"><i
+                            class="fa-solid fa-times"></i></button>
+                </div>
+
+                <!-- Text Input -->
+                <textarea id="messageInput" rows="1"
+                    class="w-full bg-transparent text-gray-100 placeholder-gray-500 focus:outline-none resize-none px-2 py-3 text-sm"
+                    placeholder="Escribe tu mensaje..."></textarea>
+
+                <!-- API Key hidden input (normally shouldn't be in frontend, but it's a test environment) -->
+                <input type="hidden" id="apiKeyInput" value="sk_webhook_secret_12345">
+
+                <!-- Submit Button -->
+                <button id="sendBtn"
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white w-12 h-12 rounded-xl flex items-center justify-center transition-all flex-shrink-0 shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

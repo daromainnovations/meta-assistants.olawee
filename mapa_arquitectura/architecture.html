@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arquitectura OLAWEE QA Agent</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+    </script>
+    <style>
+        body {
+            background-color: #111827;
+            /* gray-900 */
+            color: #F3F4F6;
+            /* gray-100 */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #818CF8;
+            /* indigo-400 */
+            margin-bottom: 10px;
+        }
+
+        p {
+            color: #9CA3AF;
+            /* gray-400 */
+            margin-bottom: 40px;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .mermaid {
+            background-color: #1F2937;
+            /* gray-800 */
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            border: 1px solid #374151;
+            /* gray-700 */
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            justify-content: center;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Mapa de Arquitectura: OLAWEE QA Agent</h1>
+    <p>Este diagrama visualiza la estructura exacta del backend, desde que el usuario envía el mensaje hasta que la IA
+        responde, emulando los nodos lógicos de N8N.</p>
+
+    <div class="mermaid">
+        graph TD
+        %% Estilos de los Nodos
+        classDef trigger fill:#10B981,stroke:#047857,stroke-width:2px,color:white;
+        classDef router fill:#3B82F6,stroke:#1D4ED8,stroke-width:2px,color:white;
+        classDef logic fill:#8B5CF6,stroke:#6D28D9,stroke-width:2px,color:white;
+        classDef ai fill:#F59E0B,stroke:#B45309,stroke-width:2px,color:white;
+        classDef db fill:#EF4444,stroke:#B91C1C,stroke-width:2px,color:white;
+        classDef tool fill:#6366F1,stroke:#4338CA,stroke-width:2px,color:white;
+        classDef newflow fill:#DB2777,stroke:#9D174D,stroke-width:2px,color:white;
+        classDef shared fill:#059669,stroke:#047857,stroke-width:2px,color:white;
+
+        subgraph "1. Interfaz"
+        UI[💻 Cliente API / n8n / Frontend]:::trigger
+        end
+
+        subgraph "2. Recepción y Enrutamiento (Webhook)"
+        Webhook[🪝 Webhook Express]:::trigger
+        FlowRouter{🔀 ¿Chat Normal o Asistente?}:::router
+        DocExtractor[📄 Shared: Lectura Documentos]:::shared
+        end
+
+        subgraph "3A. Motor Flujo Normal (Chat)"
+        SystemPromptMakerLLM[📝 Pre-Process Rápido]:::logic
+        Chat[🧠 Chat Handler]:::logic
+        end
+
+        subgraph "3B. Motor Flujo Asistentes"
+        SystemPromptMakerAssis[📝 Pre-Process Asistente]:::newflow
+        Assistant[🧠 Assistant Handler]:::newflow
+        end
+
+        subgraph "4. Base de Datos LLM Normal"
+        DB_Chats[(🗄️ prueba_chatsllms)]:::db
+        DB_Messages[(🗂️ prueba_mensajesllms)]:::db
+        end
+
+        subgraph "5. Base de Datos Asistentes Aislada"
+        DB_Assis_Chats[(🗄️ prueba_chatsassistants)]:::newflow
+        DB_Assis_Messages[(🗂️ prueba_mensajesassistants)]:::newflow
+        end
+
+        subgraph "6. Procesamiento Central de IA"
+        ModelSelector[⚙️ Selector de Modelos Shared]:::shared
+        LLMs[🤖 Modelos de IA]:::ai
+        end
+
+        subgraph "7. Tools y Utils"
+        Tools[🛠️ Browser Tools Shared]:::shared
+        TitleGen[⚙️ Background Titling]:::shared
+        end
+
+        %% Conexiones Base
+        UI -- "Envía Payload" --> Webhook
+        Webhook -- "Verifica API KEY" --> FlowRouter
+        Webhook -. "Dispara Hilo (Async)" .-> TitleGen
+        TitleGen -- "Guarda Título" --> DB_Chats
+        TitleGen -- "Guarda Título" --> DB_Assis_Chats
+
+        %% Conexiones Flujo LLM Normal
+        FlowRouter -- "Ruta: /xxx-chat" --> SystemPromptMakerLLM
+        SystemPromptMakerLLM -- "Verifica Doc" --> DocExtractor
+        DocExtractor -- "Guarda/Descarga a:" --> DB_Chats
+        DB_Chats -. "Recupera File Context" .-> SystemPromptMakerLLM
+
+        SystemPromptMakerLLM --> Chat
+        DB_Messages -. "Carga Historial LLM" .-> Chat
+        Chat -- "Inserta Chat (Human/AI)" --> DB_Messages
+
+        %% Conexiones Flujo Asistentes
+        FlowRouter -- "Ruta: /assistant-chat" --> SystemPromptMakerAssis
+        SystemPromptMakerAssis -- "Verifica Doc" --> DocExtractor
+        DocExtractor -- "Guarda/Descarga a:" --> DB_Assis_Chats
+        DB_Assis_Chats -. "Recupera File Context" .-> SystemPromptMakerAssis
+
+        SystemPromptMakerAssis --> Assistant
+        DB_Assis_Messages -. "Carga Historial ASISTENTE" .-> Assistant
+        Assistant -- "Inserta Chat (Human/AI)" --> DB_Assis_Messages
+
+        %% Resolución LLM
+        Chat --> ModelSelector
+        Assistant --> ModelSelector
+
+        ModelSelector --> LLMs
+        LLMs <--> Tools
+
+            LLMs -. "Genera Respuesta" .-> Chat
+            LLMs -. "Genera Respuesta" .-> Assistant
+
+            Chat -- "Return API Response" --> UI
+            Assistant -- "Return API Response" --> UI
+    </div>
+
+</body>
+
+</html>
