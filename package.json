@@ -7,6 +7,7 @@
     "start": "ts-node src/index.ts",
     "dev": "ts-node src/index.ts",
     "test:webhooks": "ts-node src/scripts/test-webhooks.ts",
+    "protocol:pre-prod": "ts-node src/protocols/01-pre-production-test.ts",
     "build": "tsc"
   },
   "keywords": [],
