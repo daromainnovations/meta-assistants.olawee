@@ -3,9 +3,28 @@ import multer from 'multer';
 import { webhookService } from '../services/webhook.service';
 import { apiKeyMiddleware } from '../middleware/auth.middleware';
 
-const router = Router();
+import { PrismaClient } from '@prisma/client';
 
-// 🔒 Proteger todas las rutas de este router con API Key
+const router = Router();
+const prisma = new PrismaClient();
+
+// === DASHBOARD ROUTE (Libre de API Key para Visualizar el Panel) ===
+router.get('/api/executions', async (req, res) => {
+    try {
+        const chatExecs = await prisma.exec_chats.findMany({ orderBy: { created_at: 'desc' }, take: 20 });
+        const asstExecs = await prisma.exec_assistants.findMany({ orderBy: { created_at: 'desc' }, take: 20 });
+        const pymesExecs = await prisma.exec_pymes.findMany({ orderBy: { created_at: 'desc' }, take: 20 });
+
+        let allExecs: any[] = [...chatExecs, ...asstExecs, ...pymesExecs];
+        allExecs.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+        res.json(allExecs.slice(0, 50));
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+// ===================================================================
+
+// 🔒 Proteger todas las rutas Webhook con API Key
 router.use(apiKeyMiddleware as any);
 
 // Configuración de multer

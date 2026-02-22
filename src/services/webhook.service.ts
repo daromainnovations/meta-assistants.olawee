@@ -3,6 +3,7 @@ import { documentService } from './shared/document.service';
 import { titleGeneratorAutomation } from '../automations/title-generator.automation';
 import { assistantHandlerService } from './assistants/assistant-handler.service';
 import { pymesHandlerService } from './pymes/pymes-handler.service';
+import { executionLoggerService } from './shared/execution-logger.service';
 
 export enum WebhookType {
     DOCUMENT = 'document',
@@ -61,35 +62,42 @@ export class WebhookService {
         }
 
         // 3. Routing
-        if (provider === 'assistant') {
-            if (!transformedBody.ai_model || !transformedBody.systemPrompt) {
-                return { status: 'error', message: 'Se requiere model y systemPrompt en el payload para usar el sistema de Asistentes.' };
+        let result: any;
+        try {
+            if (provider === 'assistant') {
+                if (!transformedBody.ai_model || !transformedBody.systemPrompt) {
+                    result = { status: 'error', message: 'Se requiere model y systemPrompt en el payload para usar el sistema de Asistentes.' };
+                } else {
+                    console.log(`[WebhookService] Routing to ASSISTANT Handler (${transformedBody.ai_model})`);
+                    result = await assistantHandlerService.processMessage(
+                        transformedBody.id_user_chat, transformedBody.user_prompt, transformedBody.systemPrompt,
+                        transformedBody.ai_model, transformedBody.history, finalDocumentContext
+                    );
+                }
+            } else if (provider === 'pymes-assistant') {
+                if (!transformedBody.ai_model || !transformedBody.systemPrompt) {
+                    result = { status: 'error', message: 'Se requiere model y systemPrompt para Pymes.' };
+                } else {
+                    console.log(`[WebhookService] Routing to PYMES ASSISTANT Handler (${transformedBody.ai_model})`);
+                    result = await pymesHandlerService.processMessage(
+                        transformedBody.id_user_chat, transformedBody.user_prompt, transformedBody.systemPrompt,
+                        transformedBody.ai_model, transformedBody.history, finalDocumentContext
+                    );
+                }
+            } else {
+                console.log(`[WebhookService] Routing to AI Agent ${finalDocumentContext ? 'WITH' : 'WITHOUT'} context.`);
+                result = await chatHandlerService.processMessage(provider, transformedBody, finalDocumentContext);
             }
-            console.log(`[WebhookService] Routing to ASSISTANT Handler (Model: ${transformedBody.ai_model}, Session: ${transformedBody.id_user_chat})`);
-            return assistantHandlerService.processMessage(
-                transformedBody.id_user_chat,
-                transformedBody.user_prompt,
-                transformedBody.systemPrompt,
-                transformedBody.ai_model,
-                transformedBody.history,
-                finalDocumentContext
-            );
-        } else if (provider === 'pymes-assistant') {
-            if (!transformedBody.ai_model || !transformedBody.systemPrompt) {
-                return { status: 'error', message: 'Se requiere model y systemPrompt en el payload para usar el sistema de Asistentes para Pymes.' };
-            }
-            console.log(`[WebhookService] Routing to PYMES ASSISTANT Handler (Model: ${transformedBody.ai_model}, Session: ${transformedBody.id_user_chat})`);
-            return pymesHandlerService.processMessage(
-                transformedBody.id_user_chat,
-                transformedBody.user_prompt,
-                transformedBody.systemPrompt,
-                transformedBody.ai_model,
-                transformedBody.history,
-                finalDocumentContext
-            );
-        } else {
-            console.log(`[WebhookService] Routing to AI Agent ${finalDocumentContext ? 'WITH systemprompt_doc context' : 'WITHOUT systemprompt_doc context'}.`);
-            return chatHandlerService.processMessage(provider, transformedBody, finalDocumentContext);
+
+            // Log successful execution (n8n style)
+            executionLoggerService.logExecution(provider, transformedBody, result, 'SUCCESS');
+            return result;
+
+        } catch (error: any) {
+            // Log failed execution
+            const errorOutput = { status: 'error', message: error.message || error };
+            executionLoggerService.logExecution(provider, transformedBody, errorOutput, 'ERROR');
+            throw error;
         }
     }
 

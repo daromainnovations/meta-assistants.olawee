@@ -7,7 +7,7 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  schemas   = ["qan8n2.0"]
+  schemas   = ["qan8n2.0", "pruebas_executions"]
 }
 
 model prueba_mensajesllms {
@@ -49,4 +49,37 @@ model prueba_mensajesassistants {
   session_id String?  @db.VarChar
 
   @@schema("qan8n2.0")
+}
+
+model exec_chats {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  provider   String
+  status     String
+  input      Json?
+  output     Json?
+
+  @@schema("pruebas_executions")
+}
+
+model exec_assistants {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  provider   String
+  status     String
+  input      Json?
+  output     Json?
+
+  @@schema("pruebas_executions")
+}
+
+model exec_pymes {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  provider   String
+  status     String
+  input      Json?
+  output     Json?
+
+  @@schema("pruebas_executions")
 }
