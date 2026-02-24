@@ -1,8 +1,0 @@
-node_modules
-dist
-.env
-logs/
-.git
-.gitignore
-*.md
-frontend/admin/app.js?*
