@@ -16,9 +16,9 @@ export class WebhookService {
      * Procesa la solicitud entrante y determina si es un documento o texto.
      * @param provider El servicio de LLM (ej: 'openai', 'gemini')
      * @param body El cuerpo de la solicitud (JSON o form-data fields)
-     * @param file El archivo adjunto si existe (via Multer)
+     * @param files Archivos adjuntos si existen (array via Multer)
      */
-    async handleIncomingRequest(provider: string, body: any, file?: Express.Multer.File): Promise<any> {
+    async handleIncomingRequest(provider: string, body: any, files?: Express.Multer.File[]): Promise<any> {
         console.log(`[WebhookService] Handling request for ${provider}`);
 
         let parsedTools: number[] = [];
@@ -54,13 +54,13 @@ export class WebhookService {
 
         let finalDocumentContext = transformedBody.systemprompt_doc || '';
 
-        // 1. Si hay un archivo, lo procesamos (se extrae transcipción y se concatena a los existentes en BD)
-        if (file) {
-            console.log(`[WebhookService] Detected BINARY file: ${file.originalname}`);
-            const docResult = await documentService.processDocument(provider, file, transformedBody);
+        // 1. Si hay archivos, los procesamos (se extrae transcripción de todos)
+        if (files && files.length > 0) {
+            console.log(`[WebhookService] Detected ${files.length} BINARY files`);
+            const docResult = await documentService.processDocuments(provider, files, transformedBody);
 
             if (docResult.status === 'success') {
-                // Al procesarse, el documentService ya hizo la concatenación y nos devuelve el combo final.
+                // Al procesarse, el documentService ya hizo la concatenación de todos y nos devuelve el combo final.
                 finalDocumentContext = docResult.transcription;
             } else {
                 return docResult; // Error en procesamiento de documento
@@ -68,7 +68,7 @@ export class WebhookService {
         }
 
         // 2. Si no es documento binario, pero detectamos base64/url en el JSON
-        if (!file && this.isDocumentMetadata(transformedBody)) {
+        if ((!files || files.length === 0) && this.isDocumentMetadata(transformedBody)) {
             console.log(`[WebhookService] Detected document reference in JSON.`);
         }
 

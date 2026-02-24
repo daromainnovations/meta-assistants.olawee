@@ -4,8 +4,9 @@ import cors from 'cors';
 import webhookRoutes from './routes/webhook.routes';
 import fs from 'fs';
 import path from 'path';
+import { emailService } from './services/shared/email.service';
 
-// --- SISTEMA PREVENTIVO DE ERRORES (PROTOCOLO 2) ---
+// --- SISTEMA PREVENTIVO DE ERRORES (PROTOCOLO 2 Y 5) ---
 function initCrashReporter() {
     const logsDir = path.join(process.cwd(), 'logs');
     if (!fs.existsSync(logsDir)) {
@@ -30,11 +31,15 @@ ${err?.stack || 'No Stack Trace disponible'}
     process.on('uncaughtException', (err) => {
         console.error('💥 ERROR CRÍTICO NO CAPTURADO. Guardado en logs/olawee-error.log', err.message);
         writeError(err, 'UncaughtException');
+        emailService.sendCrashAlert('UncaughtException', err.message, err.stack || 'Sin Stack Trace').catch(() => { });
     });
 
     process.on('unhandledRejection', (reason: any) => {
-        console.error('💥 PROMESA FALLIDA NO CAPTURADA. Guardado en logs/olawee-error.log', reason?.message || reason);
+        const msg = reason?.message || String(reason);
+        const stack = reason?.stack || 'Sin Stack Trace';
+        console.error('💥 PROMESA FALLIDA NO CAPTURADA. Guardado en logs/olawee-error.log', msg);
         writeError(reason, 'UnhandledRejection');
+        emailService.sendCrashAlert('UnhandledRejection', msg, stack).catch(() => { });
     });
 }
 initCrashReporter();

@@ -35,24 +35,23 @@ const upload = multer({
 });
 
 // Middleware para manejar "multipart/form-data" (con archivos) o "application/json"
-// "file" es el nombre del campo que esperamos para archivos.
-// Si no hay archivo, upload.single('file') simplemente pasa siguiente.
-const handleUpload = upload.single('file');
+// "files" es el nombre del campo que esperamos para archivos (un array de hasta 10)
+const handleUpload = upload.array('files', 10);
 
 // Helper para procesar la respuesta
 const processWebhook = async (req: Request, res: Response, provider: string) => {
     try {
         const body = req.body;
-        const file = req.file; // Multer populate this if present
+        const files = req.files as Express.Multer.File[]; // Multer populates this if present
 
         console.log(`\n=== Incoming Request [${provider}] ===`);
-        if (file) {
-            console.log(`> Type: Multipart/Form-Data (File Detected: ${file.originalname})`);
+        if (files && files.length > 0) {
+            console.log(`> Type: Multipart/Form-Data (${files.length} Files Detected)`);
         } else {
             console.log(`> Type: JSON / Text`);
         }
 
-        const result = await webhookService.handleIncomingRequest(provider, body, file);
+        const result = await webhookService.handleIncomingRequest(provider, body, files);
         res.status(200).json(result);
 
     } catch (error) {

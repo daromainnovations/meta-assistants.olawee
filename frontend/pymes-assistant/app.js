@@ -23,8 +23,9 @@ messageInput.addEventListener('input', function () {
 // Handle File attachments
 fileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
-        currentFile = e.target.files[0];
-        fileNameSpan.textContent = currentFile.name;
+        const fileNames = Array.from(e.target.files).map(f => f.name).join(', ');
+        fileNameSpan.textContent = e.target.files.length > 1 ? `${e.target.files.length} archivos adjuntos` : fileNames;
+        fileNameSpan.title = fileNames;
         filePreview.classList.remove('hidden');
     }
 });
@@ -47,10 +48,14 @@ sendBtn.addEventListener('click', sendMessage);
 
 async function sendMessage() {
     const text = messageInput.value.trim();
-    if (!text && !currentFile) return;
+    if (!text && fileInput.files.length === 0) return;
 
     // 1. Mostrar mensaje del usuario
-    appendMessage('user', text || `[Archivo adjuntado: ${currentFile.name}]`);
+    let attachmentLabel = '';
+    if (fileInput.files.length > 0) {
+        attachmentLabel = fileInput.files.length > 1 ? `[${fileInput.files.length} archivos adjuntados]` : `[Archivo adjuntado: ${fileInput.files[0].name}]`;
+    }
+    appendMessage('user', text + (text && attachmentLabel ? '\n' + attachmentLabel : attachmentLabel));
 
     // Config variables
     const session_id = sessionIdInput.value;
@@ -87,13 +92,14 @@ async function sendMessage() {
         formData.append('history', JSON.stringify(history));
 
         if (fileInput.files.length > 0) {
-            formData.append('file', fileInput.files[0]);
+            for (let i = 0; i < fileInput.files.length; i++) {
+                formData.append('files', fileInput.files[i]);
+            }
         }
 
         // Reset UI state
         messageInput.value = '';
         messageInput.style.height = 'auto';
-        currentFile = null;
         fileInput.value = '';
         filePreview.classList.add('hidden');
 
