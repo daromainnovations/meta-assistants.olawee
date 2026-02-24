@@ -71,6 +71,11 @@ async function sendMessage() {
         formData.append('chatInput', text);
         formData.append('systemPrompt', document.getElementById('systemPrompt').value || 'Eres un asistente útil y amigable.');
 
+        // Tool IDs (Asistentes en Producción)
+        const rawTools = document.getElementById('toolsInput') ? document.getElementById('toolsInput').value : '';
+        const toolsArray = rawTools.split(',').map(t => t.trim()).filter(t => t !== '');
+        formData.append('tools', JSON.stringify(toolsArray.map(Number)));
+
         // Extraer historial visual y enviarlo
         const msgElements = Array.from(chatMessages.querySelectorAll('.chat-message'));
         const history = msgElements

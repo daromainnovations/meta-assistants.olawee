@@ -5,8 +5,8 @@ export class ToolExecutorService {
     /**
      * Devuelve el array de herramientas disponiles para que el modelo decida usarlas
      */
-    getTools() {
-        console.log(`[ToolExecutor] Registering tools for agent...`);
+    getTools(toolIds: number[] = []) {
+        console.log(`[ToolExecutor] Registering tools for agent... Allowed IDs: ${toolIds.length ? toolIds.join(', ') : 'All'}`);
 
         // 🛠 Ejemplo de Tool Dinámica 1: Conseguir Hora Actual
         // Esto le da a Gemini/OpenAI conocimiento del tiempo real si el usuario lo pregunta
@@ -67,8 +67,31 @@ export class ToolExecutorService {
             }
         });
 
-        // Exportamos las herramientas base. Puedes escalar esto como crezca el backend 
-        return [getCurrentTimeTool, searchOrderTool, searchWikipediaTool];
+        // Herramientas Base: SIEMPRE DISPONIBLES EN PRODUCCIÓN
+        // (No requieren ID, el Asistente siempre las tiene inyectadas)
+        const coreTools = [getCurrentTimeTool, searchOrderTool, searchWikipediaTool];
+
+        // Mapeo Centralizado de Nuevas Herramientas Producción (Assistants / Chat general)
+        // Aquí iremos añadiendo las tools 1, 2, 3... que vayamos subiendo desde Pymes
+        const allToolsMap = new Map<number, any>([
+            // [1, nuevaToolEjemplo]
+        ]);
+
+        // Si no se proveen IDs devolvemos solo las Base (y si hay alguna genérica)
+        if (!toolIds || toolIds.length === 0) {
+            return [...coreTools];
+        }
+
+        // Si se proveen IDs, devolvemos las Base + las seleccionadas explícitamente por ID
+        const selectedTools: any[] = [...coreTools];
+        for (const id of toolIds) {
+            const tool = allToolsMap.get(id);
+            if (tool) {
+                selectedTools.push(tool);
+            }
+        }
+
+        return selectedTools;
     }
 }
 

@@ -6,6 +6,7 @@ import path from "path";
 import { Document, Paragraph, TextRun, Packer } from "docx";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import * as xlsx from "xlsx";
+import { toolExecutorService } from "../shared/tool-executor.service";
 
 const downloadsDir = path.join(process.cwd(), 'public', 'downloads');
 if (!fs.existsSync(downloadsDir)) {
@@ -325,13 +326,18 @@ Genera ÚNICAMENTE la publicación terminada. Si es Instagram/LinkedIn, usa Emoj
             { id: 5, tool: this.getCuadrantesTool() }
         ];
 
-        // Si viene vacío, no se inyecta ninguna herramienta extra al Pymes Agent.
+        // Obtener las herramientas base de producción (las que no requieren ID y siempre están activas)
+        // Usamos array vacío [] para que ToolExecutorService nos devuelva solo las coreTools
+        const baseTools = toolExecutorService.getTools([]);
+
+        // Si viene vacío, devolvemos solo las base
         if (toolIds.length === 0) {
-            return [];
+            return [...baseTools];
         }
 
-        // Si vienen IDs, filtramos y devolvemos solo esas.
-        return all.filter(t => toolIds.includes(t.id)).map(t => t.tool);
+        // Si vienen IDs, filtramos y devolvemos las base + las PYMES seleccionadas.
+        const selectedPymesTools = all.filter(t => toolIds.includes(t.id)).map(t => t.tool);
+        return [...baseTools, ...selectedPymesTools];
     }
 }
 

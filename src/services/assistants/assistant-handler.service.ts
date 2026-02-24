@@ -26,9 +26,9 @@ export class AssistantHandlerService {
             // por ahora usamos valores genéricos (0.7, null)
             const model = assistantProviderService.getModel(modelStr, 0.7, null);
 
-            // 2. Conectar Herramientas (En este backend siempre activadas para asistentes)
+            // 2. Conectar Herramientas (Ahora soportando Filtrado para Asistentes en Prod)
             let finalModel = model as any;
-            const tools = toolExecutorService.getTools();
+            const tools = toolExecutorService.getTools(toolsArray);
             if (tools.length > 0) {
                 finalModel = finalModel.bindTools(tools);
             }
