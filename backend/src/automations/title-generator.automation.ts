@@ -4,37 +4,49 @@ import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 
 export class TitleGeneratorAutomation {
     /**
-     * Tarea en segundo plano ("Fire and Forget") que genera un título 
-     * para la conversación si aún no lo tiene. Se independiza del flujo principal.
+     * Tarea en segundo plano ("Fire and Forget") que genera un título
+     * para la conversación si aún no lo tiene.
+     * Ahora soporta los 4 modos: LLM, Assistant, Pymes, Beta.
      */
     async generateTitleAsync(sessionId: string, firstMessage: string, provider: string, idAssistant?: string) {
         if (!sessionId || !firstMessage || firstMessage.trim() === '') return;
 
         try {
             const db = getPrisma();
-            const isAssistant = provider === 'assistant' || provider === 'pymes-assistant';
-            const dbTable = isAssistant ? db.prueba_chatsassistants : db.prueba_chatsllms;
+
+            // ============================================================
+            // Seleccionar la tabla correcta según el provider
+            // ============================================================
+            let dbTable: any;
+            if (provider === 'assistant') {
+                dbTable = db.prueba_chatsassistants;
+            } else if (provider === 'pymes-assistant') {
+                dbTable = db.prueba_chatspymes;
+            } else if (provider === 'beta-assistant') {
+                dbTable = db.prueba_chatsbeta;
+            } else {
+                // LLMs: gemini, openai, anthropic, mistral, deepseek
+                dbTable = db.prueba_chatsllms;
+            }
 
             // 1. Buscar la sesión en base de datos
-            const chatRow = await (dbTable as any).findFirst({
+            const chatRow = await dbTable.findFirst({
                 where: { session_id: sessionId }
             });
 
-            // Si ya existe la fila y su título no es igual al id (que es el fallback default)
-            // y tampoco está vacío, significa que ya le generamos un título antes.
+            // Si ya tiene título generado, no hacemos nada
             if (chatRow && chatRow.titulo && chatRow.titulo !== sessionId && chatRow.titulo.trim() !== '') {
-                // Ya tiene un título custom generado, el job se "suicida" silenciosamente :)
-                console.log(`[TitleGeneratorJob] 💤 Session '${sessionId}' already has a title: "${chatRow.titulo}". Skipping.`);
+                console.log(`[TitleGeneratorJob] 💤 Session '${sessionId}' already has title: "${chatRow.titulo}". Skipping.`);
                 return;
             }
 
-            console.log(`[TitleGeneratorJob] 🚀 Generating new title for session '${sessionId}' in background...`);
+            console.log(`[TitleGeneratorJob] 🚀 Generating title for session '${sessionId}' [${provider}]...`);
 
-            // 2. Instanciar un modelo ultra rápido y barato (Gemini 2.0 Flash) independientemente de qué modelo use el usuario.
+            // 2. Modelo rápido y barato para generar el título
             const model = new ChatGoogleGenerativeAI({
                 apiKey: process.env.GEMINI_API_KEY,
                 model: 'gemini-2.0-flash',
-                temperature: 0.3, // Temperatura baja para que sea conciso y directo, sin ponerse creativo
+                temperature: 0.3,
             });
 
             const messages = [
@@ -42,36 +54,31 @@ export class TitleGeneratorAutomation {
                 new HumanMessage(firstMessage)
             ];
 
-            // 3. Generar el título invocando al modelo en el hilo secundario
             const response = await model.invoke(messages);
-            let newTitle = response.content as string;
+            let newTitle = (response.content as string).replace(/["'\n*#]/g, '').trim();
 
-            // Limpiar posibles comillas, asteriscos, y saltos de línea que la IA a veces incluye
-            newTitle = newTitle.replace(/["'\n*#]/g, '').trim();
+            console.log(`[TitleGeneratorJob] ✨ Auto-title: "${newTitle}" [${provider}]`);
 
-            console.log(`[TitleGeneratorJob] ✨ New auto-title generated: "${newTitle}"`);
-
-            // 4. Guardar en Base de Datos (Si existe la fila la actualizamos, si no, la creamos)
+            // 3. Crear o actualizar el registro de chat en la tabla correcta
             if (chatRow) {
-                const updateData: any = { titulo: newTitle };
-                if (isAssistant && idAssistant) updateData.id_assistant = idAssistant;
-                await (dbTable as any).update({
-                    where: { id: chatRow.id },
-                    data: updateData
-                });
+                const updateData: any = { titulo: newTitle, updated_at: new Date() };
+                if (provider === 'assistant' && idAssistant) updateData.id_assistant = idAssistant;
+                if (provider === 'pymes-assistant' && idAssistant) updateData.id_assistant = idAssistant;
+                if (provider === 'beta-assistant' && idAssistant) updateData.beta_id = idAssistant;
+                await dbTable.update({ where: { id: chatRow.id }, data: updateData });
             } else {
                 const createData: any = {
                     session_id: sessionId,
                     titulo: newTitle,
                     systemprompt_doc: ''
                 };
-                if (isAssistant && idAssistant) createData.id_assistant = idAssistant;
-                await (dbTable as any).create({
-                    data: createData
-                });
+                if (provider === 'assistant' && idAssistant) createData.id_assistant = idAssistant;
+                if (provider === 'pymes-assistant' && idAssistant) createData.id_assistant = idAssistant;
+                if (provider === 'beta-assistant' && idAssistant) createData.beta_id = idAssistant;
+                await dbTable.create({ data: createData });
             }
 
-            console.log(`[TitleGeneratorJob] ✅ Title updated in database for session '${sessionId}'.`);
+            console.log(`[TitleGeneratorJob] ✅ Title saved for session '${sessionId}' [${provider}].`);
 
         } catch (error: any) {
             console.error(`[TitleGeneratorJob] ⚠️ Error generating title: ${error.message}`);

@@ -37,7 +37,7 @@ async function showExecutions() {
             return;
         }
 
-        console.log(`${colors.cyan}Historial Global de Ejecuciones (Tus últimos 5 registros entre Chats, Asistentes y PYMES):${colors.reset}\n`);
+        console.log(`${colors.cyan}Historial Global de Ejecuciones (Tus últimos 5 registros entre Chats, Asistentes, PYMES y Beta):${colors.reset}\n`);
 
         for (const exec of executions) {
             const statusColor = exec.status === 'SUCCESS' ? colors.green : colors.red;
@@ -45,6 +45,7 @@ async function showExecutions() {
             let sourceTable = 'AI Chats';
             if (exec.provider === 'assistant') sourceTable = 'Asistentes de IA';
             if (exec.provider === 'pymes-assistant') sourceTable = 'Assistant Pymes';
+            if (exec.provider === 'beta-assistant') sourceTable = 'Beta Assistants';
 
             console.log(`${colors.yellow}[${exec.created_at.toISOString()}]${colors.reset} ID: ${exec.id} | ${colors.cyan}(${sourceTable})${colors.reset}`);
             console.log(`-> Proveedor: ${colors.blue}${exec.provider}${colors.reset} | Estado: ${statusColor}${exec.status}${colors.reset}`);

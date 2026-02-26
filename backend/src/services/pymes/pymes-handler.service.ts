@@ -1,6 +1,6 @@
 import { HumanMessage, SystemMessage, AIMessage, ToolMessage } from '@langchain/core/messages';
 import { assistantProviderService } from '../assistants/assistant-provider.service';
-import { assistantMemoryService } from '../assistants/assistant-memory.service';
+import { pymesMemoryService } from './pymes-memory.service';
 import { toolExecutorService } from '../shared/tool-executor.service';
 import { pymesToolsService } from './pymes-tools.service';
 
@@ -34,8 +34,8 @@ export class PymesHandlerService {
                 finalModel = finalModel.bindTools(allTools);
             }
 
-            // 3. Aislar la Memoria Histórica del Asistente (Session ID)
-            const dbHistory = await assistantMemoryService.getAssistantChatHistory(sessionId);
+            // 3. Aislar la Memoria Histórica de PYMES (Session ID)
+            const dbHistory = await pymesMemoryService.getPymesChatHistory(sessionId);
 
             // 4. Armar Cadena de Mensajes Base (@langchain/core/messages)
             const messages: any[] = [];
@@ -81,8 +81,8 @@ Contexto adicional subido desde Archivos o Base de Datos:
 
             messages.push(new HumanMessage(userMessageContent));
 
-            // Guardar asíncronamente
-            await assistantMemoryService.saveMessage(sessionId, 'human', userMessageContent);
+            // Guardar en tablas de Pymes
+            await pymesMemoryService.saveMessage(sessionId, 'human', userMessageContent);
 
             console.log(`[PymesHandler] Interacting with LLM (${modelStr}). Context size: ${messages.length} messages.`);
 
@@ -131,7 +131,7 @@ Contexto adicional subido desde Archivos o Base de Datos:
             // 7. Resultado Final
             const aiResponseContent = response.content as string;
 
-            await assistantMemoryService.saveMessage(sessionId, 'ai', aiResponseContent);
+            await pymesMemoryService.saveMessage(sessionId, 'ai', aiResponseContent);
 
             console.log(`[PymesHandler] 🏁 Execution Complete.`);
 

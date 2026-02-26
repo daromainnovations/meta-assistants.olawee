@@ -1,18 +1,24 @@
 import { BaseMessage, HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
 import { getPrisma } from '../shared/prisma.service';
 
-export class AssistantMemoryService {
+/**
+ * ============================================================
+ * 🏢 PYMES MEMORY SERVICE
+ * Gestiona el historial de conversaciones del modo Pymes
+ * Tablas: prueba_chatspymes / prueba_mensajespymes
+ * ============================================================
+ */
+export class PymesMemoryService {
+
     /**
-     * Recupera el historial de chat para una sesión atada a un asistente.
-     * En este caso usamos el mismo session_id genérico,
-     * pero la lógica aisla la memoria por sesión en la tabla separada.
+     * Recupera el historial de chat de una sesión Pymes desde la BD
      */
-    async getAssistantChatHistory(sessionId: string): Promise<BaseMessage[]> {
+    async getPymesChatHistory(sessionId: string): Promise<BaseMessage[]> {
         const db = getPrisma();
-        console.log(`[AssistantMemory] Loading chat history for session: ${sessionId}`);
+        console.log(`[PymesMemory] Loading chat history for session: ${sessionId}`);
 
         try {
-            const mensajes = await db.prueba_mensajesassistants.findMany({
+            const mensajes = await db.prueba_mensajespymes.findMany({
                 where: { session_id: sessionId },
                 orderBy: { id: 'asc' }
             });
@@ -21,7 +27,6 @@ export class AssistantMemoryService {
 
             for (const msg of mensajes) {
                 if (!msg.message) continue;
-
                 const payload = msg.message as { type?: string; content?: string };
 
                 if (payload.type === 'human' && payload.content) {
@@ -33,54 +38,51 @@ export class AssistantMemoryService {
                 }
             }
 
-            console.log(`[AssistantMemory] Loaded ${langChainMessages.length} previous messages for assistant context.`);
+            console.log(`[PymesMemory] Loaded ${langChainMessages.length} messages for session.`);
             return langChainMessages;
 
         } catch (error) {
-            console.error(`[AssistantMemory] Error fetching history for session ${sessionId}:`, error);
+            console.error(`[PymesMemory] Error fetching history for session ${sessionId}:`, error);
             return [];
         }
     }
 
     /**
-     * Lee el systemprompt_doc guardado para esta sesión desde prueba_chatsassistants
+     * Lee el systemprompt_doc guardado para esta sesión desde prueba_chatspymes
      */
     async getDocumentContext(sessionId: string): Promise<string> {
         const db = getPrisma();
         try {
-            const row = await db.prueba_chatsassistants.findFirst({ where: { session_id: sessionId } });
+            const row = await db.prueba_chatspymes.findFirst({ where: { session_id: sessionId } });
             return row?.systemprompt_doc || '';
         } catch (error) {
-            console.error(`[AssistantMemory] Error fetching document context for ${sessionId}:`, error);
+            console.error(`[PymesMemory] Error fetching document context for ${sessionId}:`, error);
             return '';
         }
     }
 
     /**
-     * Guarda un nuevo mensaje de asistente en PostgreSQL
+     * Guarda un mensaje de la conversación Pymes en la BD
      */
     async saveMessage(sessionId: string, type: 'human' | 'ai' | 'system', content: string) {
         const db = getPrisma();
 
         try {
-            const messageJson = {
-                type: type,
-                content: content,
-                timestamp: new Date().toISOString()
-            };
-
-            await db.prueba_mensajesassistants.create({
+            await db.prueba_mensajespymes.create({
                 data: {
                     session_id: sessionId,
-                    message: messageJson
+                    message: {
+                        type,
+                        content,
+                        timestamp: new Date().toISOString()
+                    }
                 }
             });
-
-            console.log(`[AssistantMemory] Message (${type}) saved successfully to DB for Assistant Session.`);
+            console.log(`[PymesMemory] Message (${type}) saved for session: ${sessionId}`);
         } catch (error) {
-            console.error(`[AssistantMemory] Error saving ${type} message for session ${sessionId}:`, error);
+            console.error(`[PymesMemory] Error saving ${type} message for session ${sessionId}:`, error);
         }
     }
 }
 
-export const assistantMemoryService = new AssistantMemoryService();
+export const pymesMemoryService = new PymesMemoryService();

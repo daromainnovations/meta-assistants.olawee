@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { webhookService } from '../services/webhook.service';
 import { apiKeyMiddleware } from '../middleware/auth.middleware';
+import { qaDocInjector } from '../no_PR/qa-doc-injector.middleware'; // 🚫 NO_PR — Eliminar en producción
 
 import { PrismaClient } from '@prisma/client';
 
@@ -24,25 +25,21 @@ router.get('/api/executions', async (req, res) => {
 });
 // ===================================================================
 
-// 🔒 Proteger todas las rutas Webhook con API Key
-router.use(apiKeyMiddleware as any);
-
 // Configuración de multer
-const storage = multer.memoryStorage(); // Usamos memoria por simplicidad
+const storage = multer.memoryStorage();
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limite
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB límite
 });
 
-// Middleware para manejar "multipart/form-data" (con archivos) o "application/json"
-// "files" es el nombre del campo que esperamos para archivos (un array de hasta 10)
+// Middleware para manejar "multipart/form-data" o "application/json"
 const handleUpload = upload.array('files', 10);
 
 // Helper para procesar la respuesta
 const processWebhook = async (req: Request, res: Response, provider: string) => {
     try {
         const body = req.body;
-        const files = req.files as Express.Multer.File[]; // Multer populates this if present
+        const files = req.files as Express.Multer.File[];
 
         console.log(`\n=== Incoming Request [${provider}] ===`);
         if (files && files.length > 0) {
@@ -60,13 +57,19 @@ const processWebhook = async (req: Request, res: Response, provider: string) => 
     }
 };
 
-// Rutas actualizadas
-router.post('/openai-chat', handleUpload, (req, res) => processWebhook(req, res, 'openai'));
-router.post('/gemini-chat', handleUpload, (req, res) => processWebhook(req, res, 'gemini'));
-router.post('/anthropic-chat', handleUpload, (req, res) => processWebhook(req, res, 'anthropic'));
-router.post('/mistrall-chat', handleUpload, (req, res) => processWebhook(req, res, 'mistral'));
-router.post('/deepseek-chat', handleUpload, (req, res) => processWebhook(req, res, 'deepseek'));
-router.post('/assistant-chat', handleUpload, (req, res) => processWebhook(req, res, 'assistant'));
-router.post('/pymes-assistant-chat', handleUpload, (req, res) => processWebhook(req, res, 'pymes-assistant'));
+// ============================================================
+// 🔒 RUTAS PROTEGIDAS — API Key aplicada individualmente en cada POST
+//
+// 🚫 NO_PR: qaDocInjector inyecta systemprompt_doc desde BD (solo QA).
+//    En producción el frontend real ya lo envía. Eliminar estas líneas.
+// ============================================================
+router.post('/openai-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('llm'), (req, res) => processWebhook(req, res, 'openai'));
+router.post('/gemini-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('llm'), (req, res) => processWebhook(req, res, 'gemini'));
+router.post('/anthropic-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('llm'), (req, res) => processWebhook(req, res, 'anthropic'));
+router.post('/mistrall-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('llm'), (req, res) => processWebhook(req, res, 'mistral'));
+router.post('/deepseek-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('llm'), (req, res) => processWebhook(req, res, 'deepseek'));
+router.post('/assistant-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('assistant'), (req, res) => processWebhook(req, res, 'assistant'));
+router.post('/pymes-assistant-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('pymes'), (req, res) => processWebhook(req, res, 'pymes-assistant'));
+router.post('/beta-assistant-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('beta'), (req, res) => processWebhook(req, res, 'beta-assistant'));
 
 export default router;

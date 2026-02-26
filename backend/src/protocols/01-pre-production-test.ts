@@ -52,7 +52,8 @@ async function checkDirectories() {
         'public/downloads',
         'frontend/chat',
         'frontend/assistants',
-        'frontend/pymes-assistant'
+        'frontend/pymes-assistant',
+        'frontend/beta-assistants'
     ];
 
     for (const dir of requiredDirs) {

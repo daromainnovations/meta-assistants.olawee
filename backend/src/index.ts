@@ -84,8 +84,12 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' })); // Limitamos tamaño de JSON para evitar buffers gigantes
 
 // Servir la carpeta estática del frontend y descargas (Debe ir antes de las rutas protegidas)
-app.use(express.static(path.join(__dirname, '../frontend')));
-app.use('/downloads', express.static(path.join(__dirname, '../public/downloads')));
+// IMPORTANTE: con ts-node __dirname = src/, pero process.cwd() = backend/
+// Así que usamos process.cwd() para que '../frontend' resuelva correctamente a qaolawee-2.0/frontend/
+const frontendPath = path.join(process.cwd(), '../frontend');
+console.log(`[Static] Sirviendo frontend desde: ${frontendPath}`);
+app.use(express.static(frontendPath));
+app.use('/downloads', express.static(path.join(process.cwd(), 'public/downloads')));
 
 // Mount the webhook routes
 app.use(webhookRoutes);
