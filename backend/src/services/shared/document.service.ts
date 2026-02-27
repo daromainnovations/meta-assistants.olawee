@@ -59,8 +59,9 @@ export class DocumentService {
                 allNewContent += `\n\n[Archivo ${docType}: ${file.originalname}]\n${transcription}`;
                 lastDocType = docType;
             } catch (error) {
-                console.error(`[DocumentService] Error processing file ${file.originalname}:`, error);
-                allNewContent += `\n\n[Archivo ${file.originalname}]: Error procesando este archivo.`;
+                const errMsg = error instanceof Error ? error.message : String(error);
+                console.error(`[DocumentService] Error processing file ${file.originalname}:`, errMsg);
+                allNewContent += `\n\n[Archivo ${file.originalname}]: Error procesando este archivo: ${errMsg}`;
             }
         }
 
