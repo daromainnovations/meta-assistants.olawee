@@ -64,7 +64,7 @@ async function sendMessage() {
 
     // Enviar Petición al Backend node.js (Asistentes)
     try {
-        const endpointUrl = 'http://localhost:3000/assistant-chat';
+        const endpointUrl = '/assistant-chat';
         const formData = new FormData();
         formData.append('session_id', session_id);
         formData.append('model', model);

@@ -10,7 +10,7 @@ const modelSelect = document.getElementById('modelSelect');
 const apiKeyInput = document.getElementById('apiKeyInput');
 
 // Endpoint Backend
-const API_URL = 'http://localhost:3000/gemini-chat';
+const API_URL = '/gemini-chat';
 
 let currentFile = null;
 

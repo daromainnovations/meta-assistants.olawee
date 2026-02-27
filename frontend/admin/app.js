@@ -46,7 +46,7 @@ function formatDate(isoString) {
 async function fetchExecutions() {
     const tableBody = document.getElementById('executionsTable');
     try {
-        const response = await fetch('http://localhost:3000/api/executions');
+        const response = await fetch('/api/executions');
         if (!response.ok) throw new Error("Fallo en red o Endpoint no disponible");
 
         globalExecutions = await response.json();
