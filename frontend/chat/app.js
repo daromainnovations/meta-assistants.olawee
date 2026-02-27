@@ -70,7 +70,7 @@ async function sendMessage() {
         bodyData.append('model', model);
         bodyData.append('session_id', session_id);
         bodyData.append('history', JSON.stringify([])); // History vacío de ejemplo
-        bodyData.append('file', currentFile);
+        bodyData.append('files', currentFile);
         // Header de Form Data lo maneja el browser automático
     } else {
         // Enviar solo texto (JSON)
