@@ -6,3 +6,7 @@ node_modules
 
 # Ignore generated download PDFs and Excels
 public/downloads/
+
+# Ignore logs
+logs/
+*.log

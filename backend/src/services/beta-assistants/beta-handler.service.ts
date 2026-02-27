@@ -7,6 +7,7 @@ import { betaToolsService } from './beta-tools.service';
 // 🤖 IMPORTAR TODOS LOS AGENTES ESPECIALISTAS AQUÍ
 // ============================================================
 import { invoiceCheckerAgent } from './specialists/invoice-checker/invoice-checker.agent';
+import { docComparatorAgent } from './specialists/doc-comparator/doc-comparator.agent';
 
 /**
  * ============================================================
@@ -31,6 +32,7 @@ import { invoiceCheckerAgent } from './specialists/invoice-checker/invoice-check
 // Mapa de IDs de especialistas disponibles
 export const SPECIALIST_REGISTRY: Record<string, string> = {
     'invoice_checker': 'Verificador de Facturas vs Excel',
+    'doc_comparator': 'Comparador de Documentos (Genérico)',
     // Aquí irán los futuros especialistas:
     // 'contract_analyzer': 'Analizador de Contratos',
     // 'financial_advisor': 'Asesor Financiero',
@@ -53,6 +55,9 @@ export class BetaHandlerService {
         switch (betaId) {
             case 'invoice_checker':
                 return await invoiceCheckerAgent.run(userMessage, files, sessionId);
+
+            case 'doc_comparator':
+                return await docComparatorAgent.run(userMessage, files, sessionId);
 
             // case 'contract_analyzer':
             //     return await contractAnalyzerAgent.run(userMessage, files, sessionId);

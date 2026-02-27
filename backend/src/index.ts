@@ -74,14 +74,16 @@ app.use('/openai-chat', limiter);
 app.use('/anthropic-chat', limiter);
 app.use('/mistrall-chat', limiter);
 app.use('/deepseek-chat', limiter);
-
-// 3. Prevenir contaminación de parámetros HTTP (HPP)
-app.use(hpp());
-// -----------------------------------
+app.use('/beta-assistant-chat', limiter);
 
 // Middleware to parse JSON bodies & allow Cross-Origin Requests
 app.use(cors());
 app.use(express.json({ limit: '10mb' })); // Limitamos tamaño de JSON para evitar buffers gigantes
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// 3. Prevenir contaminación de parámetros HTTP (HPP)
+app.use(hpp());
+// -----------------------------------
 
 // Servir la carpeta estática del frontend y descargas (Debe ir antes de las rutas protegidas)
 // IMPORTANTE: con ts-node __dirname = src/, pero process.cwd() = backend/

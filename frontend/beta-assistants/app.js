@@ -57,6 +57,7 @@ function renderMarkdown(text) {
 // ============================================================
 const SPECIALIST_LABELS = {
     'invoice_checker': { label: '🔍 InvoiceChecker', color: 'text-pink-300' },
+    'doc_comparator': { label: '📄 DocComparator', color: 'text-emerald-300' },
 };
 
 function getAgentInfo() {
@@ -128,7 +129,7 @@ async function sendMessage() {
     const specialistId = specialistSelect ? specialistSelect.value : '';
 
     try {
-        const endpointUrl = 'http://localhost:8080/beta-assistant-chat';
+        const endpointUrl = '/beta-assistant-chat';
         const formData = new FormData();
         formData.append('session_id', session_id);
         formData.append('model', model);
