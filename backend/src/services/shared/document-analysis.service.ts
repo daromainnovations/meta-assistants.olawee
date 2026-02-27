@@ -12,8 +12,38 @@ export class DocumentAnalysisService {
         try {
             console.log('[DocumentAnalysis] Transcribing PDF...');
             const data = await (pdfParse as any)(buffer);
-            console.log(`[DocumentAnalysis] PDF Pages: ${data.numpages}, Characters: ${data.text.length}`);
-            return data.text;
+            const extractedText = data.text ? data.text.trim() : '';
+            console.log(`[DocumentAnalysis] PDF Pages: ${data.numpages}, Characters extracted: ${extractedText.length}`);
+
+            // Si pdf-parse no puede extraer casi texto, probablemente sea un PDF escaneado
+            if (extractedText.length < 50) {
+                console.log(`[DocumentAnalysis] PDF seems to be an image/scanned. Falling back to Gemini OCR...`);
+                const apiKey = process.env.GEMINI_API_KEY;
+                if (!apiKey || apiKey === 'tu_api_key_de_gemini_aqui') {
+                    throw new Error('GEMINI_API_KEY is not configured in .env');
+                }
+
+                const genAI = new GoogleGenerativeAI(apiKey);
+                const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+                const pdfPart = {
+                    inlineData: {
+                        data: buffer.toString('base64'),
+                        mimeType: 'application/pdf'
+                    }
+                };
+
+                const result = await model.generateContent([
+                    'Extrae y reproduce exactamente todo el texto visible en todas las páginas de este PDF. Si contiene tablas, mantén su estructura en texto. No resumas, devuelve el texto puro.',
+                    pdfPart
+                ]);
+
+                const description = result.response.text();
+                console.log(`[DocumentAnalysis] Gemini OCR result length: ${description.length} chars`);
+                return description;
+            }
+
+            return extractedText;
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             console.error('[DocumentAnalysis] Error transcribing PDF:', msg);
