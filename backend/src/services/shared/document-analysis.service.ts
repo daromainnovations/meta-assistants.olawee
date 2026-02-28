@@ -1,4 +1,4 @@
-import * as pdfParse from 'pdf-parse';
+import pdfParse from 'pdf-parse';
 import * as xlsx from 'xlsx';
 import * as mammoth from 'mammoth';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -47,7 +47,7 @@ export class DocumentAnalysisService {
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             console.error('[DocumentAnalysis] Error transcribing PDF:', msg);
-            throw new Error('Failed to transcribe PDF');
+            throw new Error(`Failed to transcribe PDF. Reason: ${msg}`);
         }
     }
 
