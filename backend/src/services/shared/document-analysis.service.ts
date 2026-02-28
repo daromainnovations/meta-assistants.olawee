@@ -1,4 +1,4 @@
-import pdfParse from 'pdf-parse';
+const pdfParse = require('pdf-parse');
 import * as xlsx from 'xlsx';
 import * as mammoth from 'mammoth';
 import { GoogleGenerativeAI } from '@google/generative-ai';
