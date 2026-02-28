@@ -11,7 +11,9 @@ export class DocumentAnalysisService {
     async transcribePDF(buffer: Buffer): Promise<string> {
         try {
             console.log('[DocumentAnalysis] Transcribing PDF...');
-            const data = await (pdfParse as any)(buffer);
+            // Fix import structure runtime issue (pdf-parse uses specific CommonJS structure)
+            const parseFn = (pdfParse as any).PDFParse || pdfParse;
+            const data = await parseFn(buffer);
             const extractedText = data.text ? data.text.trim() : '';
             console.log(`[DocumentAnalysis] PDF Pages: ${data.numpages}, Characters extracted: ${extractedText.length}`);
 
