@@ -1,4 +1,4 @@
-const pdfParse = require('pdf-parse');
+// pdf-parse loaded dynamically inside the method
 import * as xlsx from 'xlsx';
 import * as mammoth from 'mammoth';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -11,11 +11,21 @@ export class DocumentAnalysisService {
     async transcribePDF(buffer: Buffer): Promise<string> {
         try {
             console.log('[DocumentAnalysis] Transcribing PDF...');
-            // Fix import structure runtime issue (pdf-parse uses specific CommonJS structure)
-            const parseFn = (pdfParse as any).PDFParse || pdfParse;
-            const data = await parseFn(buffer);
-            const extractedText = data.text ? data.text.trim() : '';
-            console.log(`[DocumentAnalysis] PDF Pages: ${data.numpages}, Characters extracted: ${extractedText.length}`);
+            const { PDFParse } = require('pdf-parse');
+            const parser = new PDFParse({ data: buffer });
+            let extractedText = '';
+            let numpages = 0;
+
+            try {
+                const data = await parser.getText();
+                extractedText = data.text ? data.text.trim() : '';
+                const info = await parser.getInfo();
+                numpages = info?.total || 0;
+            } finally {
+                await parser.destroy();
+            }
+
+            console.log(`[DocumentAnalysis] PDF Pages: ${numpages}, Characters extracted: ${extractedText.length}`);
 
             // Si pdf-parse no puede extraer casi texto, probablemente sea un PDF escaneado
             if (extractedText.length < 50) {
