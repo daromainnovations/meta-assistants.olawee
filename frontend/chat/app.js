@@ -12,7 +12,7 @@ const apiKeyInput = document.getElementById('apiKeyInput');
 // Endpoint Backend
 const API_URL = '/gemini-chat';
 
-let currentFile = null;
+let currentFiles = [];
 
 // Adjust textarea height automatically
 messageInput.addEventListener('input', function () {
@@ -23,14 +23,18 @@ messageInput.addEventListener('input', function () {
 // Handle File attachments
 fileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
-        currentFile = e.target.files[0];
-        fileNameSpan.textContent = currentFile.name;
+        currentFiles = Array.from(e.target.files);
+        if (currentFiles.length === 1) {
+            fileNameSpan.textContent = currentFiles[0].name;
+        } else {
+            fileNameSpan.textContent = `${currentFiles.length} archivos seleccionados`;
+        }
         filePreview.classList.remove('hidden');
     }
 });
 
 removeFileBtn.addEventListener('click', () => {
-    currentFile = null;
+    currentFiles = [];
     fileInput.value = '';
     filePreview.classList.add('hidden');
 });
@@ -47,10 +51,14 @@ sendBtn.addEventListener('click', sendMessage);
 
 async function sendMessage() {
     const text = messageInput.value.trim();
-    if (!text && !currentFile) return;
+    if (!text && currentFiles.length === 0) return;
+
+    let attachText = '';
+    if (currentFiles.length === 1) attachText = `[Archivo adjuntado: ${currentFiles[0].name}]`;
+    else if (currentFiles.length > 1) attachText = `[${currentFiles.length} archivos adjuntados]`;
 
     // 1. Mostrar mensaje del usuario
-    appendMessage('user', text || `[Archivo adjuntado: ${currentFile.name}]`);
+    appendMessage('user', text || attachText);
 
     // Config variables
     const session_id = sessionIdInput.value;
@@ -63,14 +71,17 @@ async function sendMessage() {
         'x-api-key': apiKey
     };
 
-    if (currentFile) {
+    if (currentFiles.length > 0) {
         // Enviar con archivo (Multer en backend)
         bodyData = new FormData();
         bodyData.append('chatInput', text || '');
         bodyData.append('model', model);
         bodyData.append('session_id', session_id);
         bodyData.append('history', JSON.stringify([])); // History vacío de ejemplo
-        bodyData.append('files', currentFile);
+
+        currentFiles.forEach(file => {
+            bodyData.append('files', file);
+        });
         // Header de Form Data lo maneja el browser automático
     } else {
         // Enviar solo texto (JSON)
@@ -86,7 +97,7 @@ async function sendMessage() {
     // Reset UI state
     messageInput.value = '';
     messageInput.style.height = 'auto';
-    currentFile = null;
+    currentFiles = [];
     fileInput.value = '';
     filePreview.classList.add('hidden');
 
