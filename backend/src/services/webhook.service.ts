@@ -13,6 +13,27 @@ export enum WebhookType {
 }
 
 /**
+ * Obtiene el contexto previo guardado en la tabla de la base de datos
+ * según el provider y sessionId aportados.
+ */
+async function getDocumentContext(provider: string, sessionId: string): Promise<string> {
+    if (!sessionId) return '';
+    const db = getPrisma();
+    try {
+        let dbTable: any;
+        if (provider === 'assistant') dbTable = db.prueba_chatsassistants;
+        else if (provider === 'pymes-assistant') dbTable = db.prueba_chatspymes;
+        else if (provider === 'beta-assistant') dbTable = db.prueba_chatsbeta;
+        else dbTable = db.prueba_chatsllms;
+
+        const existing = await dbTable.findFirst({ where: { session_id: sessionId } });
+        return existing?.systemprompt_doc || '';
+    } catch {
+        return '';
+    }
+}
+
+/**
  * Persiste el systemprompt_doc en la tabla de chats correcta
  * para que esté disponible en futuras peticiones via qa-doc-injector.
  */
@@ -110,6 +131,11 @@ export class WebhookService {
 
                 if (docResult.status === 'success') {
                     // CONCATENAR: preservar contexto previo y añadir el nuevo
+                    // Si el payload no trajo contexto, lo buscamos de la BD para no sobreescribirlo
+                    if (!finalDocumentContext) {
+                        finalDocumentContext = await getDocumentContext(provider, transformedBody.session_id);
+                    }
+
                     if (finalDocumentContext) {
                         finalDocumentContext = `${finalDocumentContext}\n\n---\n\n[Nueva transcripción de archivos]\n${docResult.transcription}`;
                     } else {
