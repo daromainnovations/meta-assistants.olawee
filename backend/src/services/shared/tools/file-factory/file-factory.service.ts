@@ -27,18 +27,12 @@ export class FileFactoryService {
             schema: z.object({
                 fileName: z.string().describe("El nombre deseado para el archivo sin extension. (ej: 'Presupuesto_2026')"),
                 sheetName: z.string().describe("El nombre de la hoja inferior del excel."),
-                dataContent: z.string().describe("Texto en formato JSON con el array de objetos a escribir. Ejemplo estricto: '[{\"Gasto\":\"Alquiler\",\"Monto\":500}, {\"Gasto\":\"Coche\",\"Monto\":150}]'")
+                dataContent: z.array(z.record(z.string(), z.any())).describe("Array de objetos a escribir. Ejemplo: [{\"Gasto\":\"Alquiler\",\"Monto\":500}, {\"Gasto\":\"Coche\",\"Monto\":150}]")
             }),
             func: async ({ fileName, sheetName, dataContent }) => {
                 console.log(`[FileFactory - ✍️ EXCEL] LLM solicitó generar Excel: ${fileName}`);
                 try {
-                    let data: Record<string, any>[];
-                    try {
-                        data = JSON.parse(dataContent);
-                        if (!Array.isArray(data)) throw new Error("No es un array");
-                    } catch (e) {
-                        return "Error: dataContent debe ser un String con un array JSON válido. Ejemplo: '[{\"a\": 1}]'. Por favor, reintenta llamando a la herramienta correctamente.";
-                    }
+                    let data = dataContent;
 
                     // Genera Buffer
                     const buffer = await excelGenerator.generate(data, sheetName);
@@ -70,18 +64,15 @@ export class FileFactoryService {
             schema: z.object({
                 fileName: z.string().describe("Nombre de archivo sin extensión (ej: 'Informe_Auditoria')"),
                 title: z.string().describe("Título principal que irá grande en el documento."),
-                sectionsContent: z.string().describe("Texto en formato JSON con las secciones. Ejemplo: '[{\"heading\":\"Introducción\",\"content\":[\"Párrafo 1\",\"Párrafo 2\"]}]'")
+                sectionsContent: z.array(z.object({
+                    heading: z.string().describe("Título de la sección"),
+                    content: z.array(z.string()).describe("Lista de párrafos de texto de la sección")
+                })).describe("Lista de secciones del documento")
             }),
             func: async ({ fileName, title, sectionsContent }) => {
                 console.log(`[FileFactory - ✍️ WORD] LLM solicitó generar Word: ${fileName}`);
                 try {
-                    let sections: { heading: string; content: string[] }[];
-                    try {
-                        sections = JSON.parse(sectionsContent);
-                        if (!Array.isArray(sections)) throw new Error("No es un array");
-                    } catch (e) {
-                        return "Error: sectionsContent debe ser un String con un array JSON válido. Ejemplo: '[{\"heading\":\"T\",\"content\":[\"p\"]}]'. Reintenta llamando a la herramienta correctamente.";
-                    }
+                    let sections = sectionsContent;
 
                     const buffer = await wordGenerator.generate(title, sections);
                     const publicUrl = await supabaseStorageService.uploadBuffer(
@@ -109,18 +100,15 @@ export class FileFactoryService {
             schema: z.object({
                 fileName: z.string().describe("Nombre de archivo sin extensión (ej: 'Presentacion_Lanzamiento')"),
                 presentationTitle: z.string().describe("Título enorme de la presentación de la primera diapositiva o portada."),
-                slidesContent: z.string().describe("Texto en formato JSON con la lista de diapositivas. Ejemplo: '[{\"title\":\"Problema\",\"points\":[\"Punto A\",\"Punto B\"]}]'")
+                slidesContent: z.array(z.object({
+                    title: z.string().describe("Título de la diapositiva"),
+                    points: z.array(z.string()).describe("Lista de puntos clave (bullets) de la diapositiva")
+                })).describe("Lista de diapositivas de la presentación")
             }),
             func: async ({ fileName, presentationTitle, slidesContent }) => {
                 console.log(`[FileFactory - ✍️ PPT] LLM solicitó generar presentación: ${fileName}`);
                 try {
-                    let slides: { title: string; points: string[] }[];
-                    try {
-                        slides = JSON.parse(slidesContent);
-                        if (!Array.isArray(slides)) throw new Error("No es un array");
-                    } catch (e) {
-                        return "Error: slidesContent debe ser un String con un array JSON válido. Ejemplo: '[{\"title\":\"T\",\"points\":[\"p\"]}]'. Reintenta llamando a la herramienta correctamente.";
-                    }
+                    let slides = slidesContent;
 
                     const buffer = await pptGenerator.generate(presentationTitle, slides);
                     const publicUrl = await supabaseStorageService.uploadBuffer(
@@ -148,18 +136,12 @@ export class FileFactoryService {
             schema: z.object({
                 fileName: z.string().describe("Nombre de archivo sin extensión (ej: 'Manual_Usuario')"),
                 title: z.string().describe("Título principal y enorme que irá centrado en la primera parte."),
-                paragraphsContent: z.string().describe("Texto en formato JSON con un array de strings (los párrafos). Ejemplo: '[\"Párrafo 1\", \"Párrafo 2\"]'")
+                paragraphsContent: z.array(z.string()).describe("Array de strings (párrafos de texto). Ejemplo: [\"Párrafo 1\", \"Párrafo 2\"]")
             }),
             func: async ({ fileName, title, paragraphsContent }) => {
                 console.log(`[FileFactory - ✍️ PDF] LLM solicitó generar PDF: ${fileName}`);
                 try {
-                    let paragraphs: string[];
-                    try {
-                        paragraphs = JSON.parse(paragraphsContent);
-                        if (!Array.isArray(paragraphs)) throw new Error("No es un array");
-                    } catch (e) {
-                        return "Error: paragraphsContent debe ser un String con un array JSON válido. Ejemplo: '[\"p1\", \"p2\"]'. Reintenta llamando a la herramienta correctamente.";
-                    }
+                    let paragraphs = paragraphsContent;
 
                     const buffer = await pdfGenerator.generate(title, paragraphs);
                     const publicUrl = await supabaseStorageService.uploadBuffer(
