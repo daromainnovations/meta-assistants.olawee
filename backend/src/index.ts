@@ -25,6 +25,19 @@ function initCrashReporter() {
 ${err?.stack || 'No Stack Trace disponible'}
 ===================================================================
 `;
+
+        // Limitar tamaño del log a 5MB para evitar sobrecarga (Protocolo de prevención)
+        try {
+            if (fs.existsSync(logPath)) {
+                const stats = fs.statSync(logPath);
+                if (stats.size > 5 * 1024 * 1024) { // 5MB limit
+                    fs.renameSync(logPath, logPath + '.old');
+                }
+            }
+        } catch (e) {
+            console.error("Error al limpiar log de errores:", e);
+        }
+
         fs.appendFileSync(logPath, block);
     };
 

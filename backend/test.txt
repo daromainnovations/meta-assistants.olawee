@@ -1,4 +1,0 @@
-Hola, este es un archivo de prueba.
-Puedes modificar este contenido para probar cómo tu backend procesa diferentes archivos.
-12345
-ABCDE
