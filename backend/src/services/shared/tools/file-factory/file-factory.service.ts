@@ -27,7 +27,7 @@ export class FileFactoryService {
             schema: z.object({
                 fileName: z.string().describe("El nombre deseado para el archivo sin extension. (ej: 'Presupuesto_2026')"),
                 sheetName: z.string().describe("El nombre de la hoja inferior del excel."),
-                dataContent: z.array(z.record(z.string(), z.any())).describe("Array de objetos a escribir. Ejemplo: [{\"Gasto\":\"Alquiler\",\"Monto\":500}, {\"Gasto\":\"Coche\",\"Monto\":150}]")
+                dataContent: z.array(z.any()).describe("Array de objetos a escribir. Ejemplo: [{\"Gasto\":\"Alquiler\",\"Monto\":500}, {\"Gasto\":\"Coche\",\"Monto\":150}]")
             }),
             func: async ({ fileName, sheetName, dataContent }) => {
                 console.log(`[FileFactory - ✍️ EXCEL] LLM solicitó generar Excel: ${fileName}`);
