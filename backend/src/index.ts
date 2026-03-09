@@ -30,8 +30,8 @@ ${err?.stack || 'No Stack Trace disponible'}
         try {
             if (fs.existsSync(logPath)) {
                 const stats = fs.statSync(logPath);
-                if (stats.size > 5 * 1024 * 1024) { // 5MB limit
-                    fs.renameSync(logPath, logPath + '.old');
+                if (stats.size > 5 * 1024 * 1024) { // Límite de 5MB
+                    fs.unlinkSync(logPath); // Borra el archivo antiguo permanentemente
                 }
             }
         } catch (e) {
