@@ -70,6 +70,6 @@ router.post('/mistrall-chat', apiKeyMiddleware as any, handleUpload, qaDocInject
 router.post('/deepseek-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('llm'), (req, res) => processWebhook(req, res, 'deepseek'));
 router.post('/assistant-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('assistant'), (req, res) => processWebhook(req, res, 'assistant'));
 router.post('/pymes-assistant-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('pymes'), (req, res) => processWebhook(req, res, 'pymes-assistant'));
-router.post('/beta-assistant-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('beta'), (req, res) => processWebhook(req, res, 'beta-assistant'));
+router.post('/meta-assistant-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('meta'), (req, res) => processWebhook(req, res, 'meta-assistant'));
 
 export default router;

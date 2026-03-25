@@ -129,7 +129,7 @@ async function sendMessage() {
     const specialistId = specialistSelect ? specialistSelect.value : '';
 
     try {
-        const endpointUrl = '/beta-assistant-chat';
+        const endpointUrl = '/meta-assistant-chat';
         const formData = new FormData();
         formData.append('session_id', session_id);
         formData.append('model', model);

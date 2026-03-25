@@ -22,8 +22,8 @@ export class TitleGeneratorAutomation {
                 dbTable = db.prueba_chatsassistants;
             } else if (provider === 'pymes-assistant') {
                 dbTable = db.prueba_chatspymes;
-            } else if (provider === 'beta-assistant') {
-                dbTable = db.prueba_chatsbeta;
+            } else if (provider === 'meta-assistant') {
+                dbTable = db.prueba_chatsmeta;
             } else {
                 // LLMs: gemini, openai, anthropic, mistral, deepseek
                 dbTable = db.prueba_chatsllms;
@@ -64,7 +64,7 @@ export class TitleGeneratorAutomation {
                 const updateData: any = { titulo: newTitle, updated_at: new Date() };
                 if (provider === 'assistant' && idAssistant) updateData.id_assistant = idAssistant;
                 if (provider === 'pymes-assistant' && idAssistant) updateData.id_assistant = idAssistant;
-                if (provider === 'beta-assistant' && idAssistant) updateData.beta_id = idAssistant;
+                if (provider === 'meta-assistant' && idAssistant) updateData.meta_id = idAssistant;
                 await dbTable.update({ where: { id: chatRow.id }, data: updateData });
             } else {
                 const createData: any = {
@@ -74,7 +74,7 @@ export class TitleGeneratorAutomation {
                 };
                 if (provider === 'assistant' && idAssistant) createData.id_assistant = idAssistant;
                 if (provider === 'pymes-assistant' && idAssistant) createData.id_assistant = idAssistant;
-                if (provider === 'beta-assistant' && idAssistant) createData.beta_id = idAssistant;
+                if (provider === 'meta-assistant' && idAssistant) createData.meta_id = idAssistant;
                 await dbTable.create({ data: createData });
             }
 

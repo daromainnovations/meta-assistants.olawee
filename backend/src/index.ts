@@ -87,7 +87,7 @@ app.use('/openai-chat', limiter);
 app.use('/anthropic-chat', limiter);
 app.use('/mistrall-chat', limiter);
 app.use('/deepseek-chat', limiter);
-app.use('/beta-assistant-chat', limiter);
+app.use('/meta-assistant-chat', limiter);
 
 // Middleware to parse JSON bodies & allow Cross-Origin Requests
 app.use(cors());

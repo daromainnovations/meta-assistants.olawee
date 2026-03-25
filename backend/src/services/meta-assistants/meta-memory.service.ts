@@ -3,22 +3,22 @@ import { getPrisma } from '../shared/prisma.service';
 
 /**
  * ============================================================
- * 🧪 BETA MEMORY SERVICE
- * Gestiona el historial de conversaciones del modo Beta
- * Tablas: prueba_chatsbeta / prueba_mensajesbeta
+ * 🧪 META MEMORY SERVICE
+ * Gestiona el historial de conversaciones del modo Meta
+ * Tablas: prueba_chatsmeta / prueba_mensajesmeta
  * ============================================================
  */
-export class BetaMemoryService {
+export class MetaMemoryService {
 
     /**
-     * Recupera el historial de chat de una sesión Beta desde la BD
+     * Recupera el historial de chat de una sesión Meta desde la BD
      */
-    async getBetaChatHistory(sessionId: string): Promise<BaseMessage[]> {
+    async getMetaChatHistory(sessionId: string): Promise<BaseMessage[]> {
         const db = getPrisma();
-        console.log(`[BetaMemory] Loading chat history for session: ${sessionId}`);
+        console.log(`[MetaMemory] Loading chat history for session: ${sessionId}`);
 
         try {
-            const mensajes = await db.prueba_mensajesbeta.findMany({
+            const mensajes = await db.prueba_mensajesmeta.findMany({
                 where: { session_id: sessionId },
                 orderBy: { id: 'asc' }
             });
@@ -38,37 +38,37 @@ export class BetaMemoryService {
                 }
             }
 
-            console.log(`[BetaMemory] Loaded ${langChainMessages.length} messages for session.`);
+            console.log(`[MetaMemory] Loaded ${langChainMessages.length} messages for session.`);
             return langChainMessages;
 
         } catch (error) {
-            console.error(`[BetaMemory] Error fetching history for session ${sessionId}:`, error);
+            console.error(`[MetaMemory] Error fetching history for session ${sessionId}:`, error);
             return [];
         }
     }
 
     /**
-     * Lee el systemprompt_doc guardado para esta sesión desde prueba_chatsbeta
+     * Lee el systemprompt_doc guardado para esta sesión desde prueba_chatsmeta
      */
     async getDocumentContext(sessionId: string): Promise<string> {
         const db = getPrisma();
         try {
-            const row = await db.prueba_chatsbeta.findFirst({ where: { session_id: sessionId } });
+            const row = await db.prueba_chatsmeta.findFirst({ where: { session_id: sessionId } });
             return row?.systemprompt_doc || '';
         } catch (error) {
-            console.error(`[BetaMemory] Error fetching document context for ${sessionId}:`, error);
+            console.error(`[MetaMemory] Error fetching document context for ${sessionId}:`, error);
             return '';
         }
     }
 
     /**
-     * Guarda un mensaje de la conversación Beta en la BD
+     * Guarda un mensaje de la conversación Meta en la BD
      */
     async saveMessage(sessionId: string, type: 'human' | 'ai' | 'system', content: string) {
         const db = getPrisma();
 
         try {
-            await db.prueba_mensajesbeta.create({
+            await db.prueba_mensajesmeta.create({
                 data: {
                     session_id: sessionId,
                     message: {
@@ -78,11 +78,11 @@ export class BetaMemoryService {
                     }
                 }
             });
-            console.log(`[BetaMemory] Message (${type}) saved for session: ${sessionId}`);
+            console.log(`[MetaMemory] Message (${type}) saved for session: ${sessionId}`);
         } catch (error) {
-            console.error(`[BetaMemory] Error saving ${type} message for session ${sessionId}:`, error);
+            console.error(`[MetaMemory] Error saving ${type} message for session ${sessionId}:`, error);
         }
     }
 }
 
-export const betaMemoryService = new BetaMemoryService();
+export const metaMemoryService = new MetaMemoryService();

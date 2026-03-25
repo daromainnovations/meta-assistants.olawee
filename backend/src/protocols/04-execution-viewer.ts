@@ -45,7 +45,7 @@ async function showExecutions() {
             let sourceTable = 'AI Chats';
             if (exec.provider === 'assistant') sourceTable = 'Asistentes de IA';
             if (exec.provider === 'pymes-assistant') sourceTable = 'Assistant Pymes';
-            if (exec.provider === 'beta-assistant') sourceTable = 'Beta Assistants';
+            if (exec.provider === 'meta-assistant') sourceTable = 'Meta Assistants';
 
             console.log(`${colors.yellow}[${exec.created_at.toISOString()}]${colors.reset} ID: ${exec.id} | ${colors.cyan}(${sourceTable})${colors.reset}`);
             console.log(`-> Proveedor: ${colors.blue}${exec.provider}${colors.reset} | Estado: ${statusColor}${exec.status}${colors.reset}`);
