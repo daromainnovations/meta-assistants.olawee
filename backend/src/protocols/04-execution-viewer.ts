@@ -22,9 +22,7 @@ async function showExecutions() {
         // Obtenemos los últimos 3 de cada tabla para combinarlos y luego los ordenamos todos juntos por fecha
         const chatExecs = await prisma.exec_chats.findMany({ orderBy: { created_at: 'desc' }, take: 3 });
         const asstExecs = await prisma.exec_assistants.findMany({ orderBy: { created_at: 'desc' }, take: 3 });
-        const pymesExecs = await prisma.exec_pymes.findMany({ orderBy: { created_at: 'desc' }, take: 3 });
-
-        let allExecs: any[] = [...chatExecs, ...asstExecs, ...pymesExecs];
+        let allExecs: any[] = [...chatExecs, ...asstExecs];
 
         // Ordenamos del más reciente al más antiguo
         allExecs.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
@@ -37,15 +35,15 @@ async function showExecutions() {
             return;
         }
 
-        console.log(`${colors.cyan}Historial Global de Ejecuciones (Tus últimos 5 registros entre Chats, Asistentes, PYMES y Beta):${colors.reset}\n`);
+        console.log(`${colors.cyan}Historial Global de Ejecuciones (Tus últimos 5 registros entre Chats, Asistentes y Meta):${colors.reset}\n`);
 
         for (const exec of executions) {
             const statusColor = exec.status === 'SUCCESS' ? colors.green : colors.red;
 
             let sourceTable = 'AI Chats';
             if (exec.provider === 'assistant') sourceTable = 'Asistentes de IA';
-            if (exec.provider === 'pymes-assistant') sourceTable = 'Assistant Pymes';
-            if (exec.provider === 'beta-assistant') sourceTable = 'Beta Assistants';
+
+            if (exec.provider === 'meta-assistant') sourceTable = 'Meta Assistants';
 
             console.log(`${colors.yellow}[${exec.created_at.toISOString()}]${colors.reset} ID: ${exec.id} | ${colors.cyan}(${sourceTable})${colors.reset}`);
             console.log(`-> Proveedor: ${colors.blue}${exec.provider}${colors.reset} | Estado: ${statusColor}${exec.status}${colors.reset}`);
@@ -61,9 +59,7 @@ async function showExecutions() {
 
         const c1 = await prisma.exec_chats.count();
         const c2 = await prisma.exec_assistants.count();
-        const c3 = await prisma.exec_pymes.count();
-
-        console.log(`${colors.cyan}Total de tu BD Segmentada:${colors.reset} ${c1} (Chats) | ${c2} (Assistants) | ${c3} (PYMES).`);
+        console.log(`${colors.cyan}Total de tu BD Segmentada:${colors.reset} ${c1} (Chats) | ${c2} (Assistants).`);
         console.log(`${colors.cyan}La auto-limpieza de (> 7 días) está operativa de forma silenciosa e independiente por tabla.${colors.reset}\n`);
 
     } catch (e: any) {

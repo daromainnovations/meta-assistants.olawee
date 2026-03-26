@@ -4,7 +4,7 @@ import { toolExecutorService } from "../shared/tool-executor.service";
 
 /**
  * ============================================================
- * 🧪 BETA TOOLS SERVICE — Laboratorio de Asistentes Avanzados
+ * 🧪 META TOOLS SERVICE — Laboratorio de Asistentes Avanzados
  * ============================================================
  * Este es el lienzo en blanco para desarrollar y probar nuevas
  * herramientas especializadas antes de pasarlas a Producción.
@@ -12,18 +12,18 @@ import { toolExecutorService } from "../shared/tool-executor.service";
  * Para añadir una nueva herramienta:
  * 1. Crea un nuevo método: getMyNewTool()
  * 2. Regístrala en el Map de getAllTools() con el siguiente ID disponible
- * 3. Desde el frontend de Beta, introduce el ID en el campo "Beta Tool IDs"
+ * 3. Desde el frontend de Meta, introduce el ID en el campo "Meta Tool IDs"
  * ============================================================
  */
 
-export class BetaToolsService {
+export class MetaToolsService {
 
     // ============================================================
-    // 🔬 ÁREA DE NUEVAS HERRAMIENTAS BETA
+    // 🔬 ÁREA DE NUEVAS HERRAMIENTAS META
     // (Aquí van las herramientas en desarrollo / experimentales)
     // ============================================================
 
-    // EJEMPLO DE TOOL BETA #1
+    // EJEMPLO DE TOOL META #1
     // getMyNewSpecializedTool() {
     //     return new DynamicStructuredTool({
     //         name: "toolNueva",
@@ -39,11 +39,11 @@ export class BetaToolsService {
     // }
 
     // ============================================================
-    // 📦 REGISTRO DE HERRAMIENTAS BETA (por ID numérico)
+    // 📦 REGISTRO DE HERRAMIENTAS META (por ID numérico)
     // ============================================================
     getAllTools(toolIds: number[] = []) {
 
-        // Herramientas Beta registradas con ID (se irán añadiendo aquí)
+        // Herramientas Meta registradas con ID (se irán añadiendo aquí)
         const all = new Map<number, any>([
             // [1, this.getMyNewSpecializedTool()],
         ]);
@@ -55,15 +55,15 @@ export class BetaToolsService {
             return [...baseTools];
         }
 
-        // Devolvemos las base + las Beta seleccionadas por ID
-        const selectedBetaTools: any[] = [];
+        // Devolvemos las base + las Meta seleccionadas por ID
+        const selectedMetaTools: any[] = [];
         for (const id of toolIds) {
             const tool = all.get(id);
-            if (tool) selectedBetaTools.push(tool);
+            if (tool) selectedMetaTools.push(tool);
         }
 
-        return [...baseTools, ...selectedBetaTools];
+        return [...baseTools, ...selectedMetaTools];
     }
 }
 
-export const betaToolsService = new BetaToolsService();
+export const metaToolsService = new MetaToolsService();

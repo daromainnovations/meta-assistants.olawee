@@ -50,7 +50,7 @@ async function runSecurityAudit() {
     // 3. Revisión de API Keys (Fugas de Seguridad en Github)
     process.stdout.write(`\n🔍 Comprobando posibles fugas de API Keys en FRONTEND (.js/.html)... `);
     let leakFound = false;
-    const searchDirs = ['frontend/chat', 'frontend/assistants', 'frontend/pymes-assistant', 'frontend/beta-assistants'];
+    const searchDirs = ['frontend/chat', 'frontend/assistants', 'frontend/pymes-assistant', 'frontend/meta-assistants'];
     searchDirs.forEach(dir => {
         const fullPath = path.join(process.cwd(), dir, 'app.js');
         if (fs.existsSync(fullPath)) {

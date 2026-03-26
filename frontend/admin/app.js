@@ -16,7 +16,7 @@ function setFilter(filterType) {
         if (filterType === 'ALL' && b.innerText.includes('Todas')) return true;
         if (filterType === 'CHATS' && b.innerText.includes('Chats')) return true;
         if (filterType === 'ASSISTANTS' && b.innerText.includes('Assistants')) return true;
-        if (filterType === 'PYMES' && b.innerText.includes('PYMES')) return true;
+        if (filterType === 'META' && b.innerText.includes('META')) return true;
         return false;
     });
 
@@ -29,7 +29,7 @@ function setFilter(filterType) {
         'ALL': '(Global - Todas las Tablas)',
         'CHATS': '(Solo Modelos Directos)',
         'ASSISTANTS': '(Solo Agentes de Usuario)',
-        'PYMES': '(Solo Agente PYMES OLAWEE)'
+        'META': '(Especialistas Meta Assistants)'
     };
     document.getElementById('filterLabel').innerText = labels[filterType];
 
@@ -63,9 +63,9 @@ function renderTable() {
 
     const filteredExecutions = globalExecutions.filter(exec => {
         if (currentFilter === 'ALL') return true;
-        if (currentFilter === 'CHATS') return !['assistant', 'pymes-assistant'].includes(exec.provider);
+        if (currentFilter === 'CHATS') return !['assistant', 'meta-assistant'].includes(exec.provider);
         if (currentFilter === 'ASSISTANTS') return exec.provider === 'assistant';
-        if (currentFilter === 'PYMES') return exec.provider === 'pymes-assistant';
+        if (currentFilter === 'META') return exec.provider === 'meta-assistant';
         return true;
     });
 
@@ -89,7 +89,7 @@ function renderTable() {
         if (provName.includes('OPENAI')) provBadge = 'bg-teal-900 text-teal-300';
         if (provName.includes('GEMINI')) provBadge = 'bg-indigo-900 text-indigo-300';
         if (provName.includes('ASSISTANT')) provBadge = 'bg-purple-900 text-purple-300';
-        if (provName.includes('PYMES')) provBadge = 'bg-amber-900 text-amber-300';
+        if (provName.includes('META')) provBadge = 'bg-pink-900 text-pink-300';
 
         const row = `
             <tr class="hover:bg-gray-700/50 transition-colors group cursor-pointer" onclick="openModal('${exec.id}')">

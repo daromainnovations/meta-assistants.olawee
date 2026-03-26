@@ -2,8 +2,8 @@ import { chatHandlerService } from './chat/chat-handler.service';
 import { documentService } from './shared/document.service';
 import { titleGeneratorAutomation } from '../automations/title-generator.automation';
 import { assistantHandlerService } from './assistants/assistant-handler.service';
-import { pymesHandlerService } from './pymes/pymes-handler.service';
-import { betaHandlerService } from './beta-assistants/beta-handler.service';
+
+import { metaHandlerService } from './meta-assistants/meta-handler.service';
 import { executionLoggerService } from './shared/execution-logger.service';
 import { getPrisma } from './shared/prisma.service';
 
@@ -22,8 +22,8 @@ async function getDocumentContext(provider: string, sessionId: string): Promise<
     try {
         let dbTable: any;
         if (provider === 'assistant') dbTable = db.prueba_chatsassistants;
-        else if (provider === 'pymes-assistant') dbTable = db.prueba_chatspymes;
-        else if (provider === 'beta-assistant') dbTable = db.prueba_chatsbeta;
+
+        else if (provider === 'meta-assistant') dbTable = db.prueba_chatsmeta;
         else dbTable = db.prueba_chatsllms;
 
         const existing = await dbTable.findFirst({ where: { session_id: sessionId } });
@@ -43,8 +43,8 @@ async function saveDocumentContext(provider: string, sessionId: string, docConte
     try {
         let dbTable: any;
         if (provider === 'assistant') dbTable = db.prueba_chatsassistants;
-        else if (provider === 'pymes-assistant') dbTable = db.prueba_chatspymes;
-        else if (provider === 'beta-assistant') dbTable = db.prueba_chatsbeta;
+
+        else if (provider === 'meta-assistant') dbTable = db.prueba_chatsmeta;
         else dbTable = db.prueba_chatsllms;
 
         const existing = await dbTable.findFirst({ where: { session_id: sessionId } });
@@ -98,14 +98,14 @@ export class WebhookService {
             systemPrompt: body.systemPrompt,
             history: body.history || [],
             tools: parsedTools,
-            beta_id: body.beta_id || null  // 🎯 ID del especialista Beta (si se provee)
+            meta_id: body.meta_id || null  // 🎯 ID del especialista Meta (si se provee)
         };
 
         // 👻 LANZAMIENTO DEL TRABAJO DE FONDO: Autonaming del Título ("Fire and Forget")
-        // Para beta-assistant usamos beta_id como identificador del especialista
+        // Para meta-assistant usamos meta_id como identificador del especialista
         if (transformedBody.chatInput) {
-            const assistantId = provider === 'beta-assistant'
-                ? (transformedBody.beta_id || undefined)
+            const assistantId = provider === 'meta-assistant'
+                ? (transformedBody.meta_id || undefined)
                 : transformedBody.id_assistant;
             titleGeneratorAutomation.generateTitleAsync(transformedBody.session_id, transformedBody.chatInput, provider, assistantId).catch((e: any) => {
                 console.error("[TitleGenerator] Background error:", e);
@@ -115,15 +115,15 @@ export class WebhookService {
         let finalDocumentContext = transformedBody.systemprompt_doc || '';
 
         // ============================================================
-        // BETA SPECIALISTS — Saltar documentService: reciben archivos crudos
+        // META SPECIALISTS — Saltar documentService: reciben archivos crudos
         // Los agentes especialistas (invoice_checker, etc.) procesan los
         // buffers binarios directamente (Excel, PDF, imágenes). Si el
         // documentService los intercepta primero, los convierte en texto
         // y los agentes pierden acceso a los archivos originales.
         // ============================================================
-        const isBetaSpecialist = provider === 'beta-assistant' && !!transformedBody.beta_id;
+        const isMetaSpecialist = provider === 'meta-assistant' && !!transformedBody.meta_id;
 
-        if (!isBetaSpecialist) {
+        if (!isMetaSpecialist) {
             // 1. Si hay archivos, los procesamos (se extrae transcripción de todos)
             if (files && files.length > 0) {
                 console.log(`[WebhookService] Detected ${files.length} BINARY files — routing through documentService`);
@@ -156,7 +156,7 @@ export class WebhookService {
                 console.log(`[WebhookService] Detected document reference in JSON.`);
             }
         } else {
-            console.log(`[WebhookService] ⚡ Beta Specialist mode — skipping documentService, passing raw files to agent.`);
+            console.log(`[WebhookService] ⚡ Meta Specialist mode — skipping documentService, passing raw files to agent.`);
         }
 
         // 3. Routing
@@ -172,37 +172,18 @@ export class WebhookService {
                         transformedBody.model, transformedBody.history, finalDocumentContext, transformedBody.tools
                     );
                 }
-            } else if (provider === 'pymes-assistant') {
-                if (!transformedBody.model || !transformedBody.systemPrompt) {
-                    result = { status: 'error', message: 'Se requiere model y systemPrompt para Pymes.' };
-                } else {
-                    console.log(`[WebhookService] Routing to PYMES ASSISTANT Handler (${transformedBody.model})`);
-                    result = await pymesHandlerService.processMessage(
-                        transformedBody.session_id, transformedBody.chatInput, transformedBody.systemPrompt,
-                        transformedBody.model, transformedBody.history, finalDocumentContext, transformedBody.tools
-                    );
-                }
-            } else if (provider === 'beta-assistant') {
-                // Los especialistas Beta pueden recibir beta_id sin model/systemPrompt (lo tienen pre-configurado)
-                const betaId = transformedBody.beta_id;
 
-                if (betaId) {
-                    // MODO ESPECIALISTA: El agente tiene todo pre-configurado, no necesita model ni systemPrompt externo
-                    console.log(`[WebhookService] Routing to BETA SPECIALIST: "${betaId}"`);
-                    result = await betaHandlerService.processMessage(
+            } else if (provider === 'meta-assistant') {
+                const metaId = transformedBody.meta_id;
+
+                if (!metaId) {
+                    result = { status: 'error', message: 'Se requiere un meta_id válido para acceder a los asistentes especialistas Meta.' };
+                } else {
+                    console.log(`[WebhookService] Routing to META SPECIALIST: "${metaId}"`);
+                    result = await metaHandlerService.processMessage(
                         transformedBody.session_id, transformedBody.chatInput, '',
                         transformedBody.model || 'gemini-2.0-flash', transformedBody.history,
-                        finalDocumentContext, transformedBody.tools, betaId, files
-                    );
-                } else if (!transformedBody.model || !transformedBody.systemPrompt) {
-                    result = { status: 'error', message: 'Se requiere model y systemPrompt para el modo Beta genérico, o un beta_id para modo especialista.' };
-                } else {
-                    // MODO GENÉRICO BETA: Sin especialista, funciona como laboratorio
-                    console.log(`[WebhookService] Routing to BETA GENERIC Handler (${transformedBody.model})`);
-                    result = await betaHandlerService.processMessage(
-                        transformedBody.session_id, transformedBody.chatInput, transformedBody.systemPrompt,
-                        transformedBody.model, transformedBody.history, finalDocumentContext,
-                        transformedBody.tools, undefined, files
+                        finalDocumentContext, transformedBody.tools, metaId, files
                     );
                 }
             } else {

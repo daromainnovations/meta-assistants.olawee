@@ -105,12 +105,13 @@ async function sendMessage() {
     const loaderId = appendLoader();
     scrollBottom();
 
-    // 2. Fetch al backend dinamico basado en el modelo
-    let dynamicAPI_URL = '/gemini-chat'; // default
-    if (model.startsWith('gpt-')) dynamicAPI_URL = '/openai-chat';
-    else if (model.startsWith('claude-')) dynamicAPI_URL = '/anthropic-chat';
-    else if (model.startsWith('mistral-') || model.startsWith('open-mixtral')) dynamicAPI_URL = '/mistrall-chat';
-    else if (model.startsWith('deepseek-')) dynamicAPI_URL = '/deepseek-chat';
+    // 2. Fetch al backend dinamico basado en el modelo (con prefijo de entorno si existe)
+    const prefix = window.API_PREFIX || '';
+    let dynamicAPI_URL = `${prefix}/gemini-chat`; // default
+    if (model.startsWith('gpt-')) dynamicAPI_URL = `${prefix}/openai-chat`;
+    else if (model.startsWith('claude-')) dynamicAPI_URL = `${prefix}/anthropic-chat`;
+    else if (model.startsWith('mistral-') || model.startsWith('open-mixtral')) dynamicAPI_URL = `${prefix}/mistrall-chat`;
+    else if (model.startsWith('deepseek-')) dynamicAPI_URL = `${prefix}/deepseek-chat`;
 
     try {
         const response = await fetch(dynamicAPI_URL, {
