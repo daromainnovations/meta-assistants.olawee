@@ -78,7 +78,7 @@ export class ToolExecutorService {
         ];
 
         // Mapeo Centralizado de Nuevas Herramientas Producción (Assistants / Chat general)
-        // Aquí iremos añadiendo las tools 1, 2, 3... que vayamos subiendo desde Pymes
+        // Aquí iremos añadiendo las tools 1, 2, 3... que vayamos subiendo
         const allToolsMap = new Map<number, any>([
             // [1, nuevaToolEjemplo]
         ]);

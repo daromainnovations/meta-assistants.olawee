@@ -9,14 +9,28 @@ import { PrismaClient } from '@prisma/client';
 const router = Router();
 const prisma = new PrismaClient();
 
+// ============================================================
+// 🌍 CONFIGURACIÓN DE ENTORNO Y PREFIJOS
+// ============================================================
+const isStaging = process.env.APP_ENV === 'staging';
+const qaPrefix = isStaging ? 'QA' : '';
+
+if (isStaging) {
+    console.log(`[Router] 🧪 STAGING MODE DETECTED — Webhooks will use "${qaPrefix}" prefix.`);
+} else {
+    console.log(`[Router] 🚀 PRODUCTION MODE — Webhooks will use standard names.`);
+}
+
+// Inyector condicional: Solo activo en Staging
+const docInjector = isStaging ? qaDocInjector : () => (req: Request, res: Response, next: any) => next();
+
 // === DASHBOARD ROUTE (Libre de API Key para Visualizar el Panel) ===
 router.get('/api/executions', async (req, res) => {
     try {
         const chatExecs = await prisma.exec_chats.findMany({ orderBy: { created_at: 'desc' }, take: 20 });
         const asstExecs = await prisma.exec_assistants.findMany({ orderBy: { created_at: 'desc' }, take: 20 });
-        const pymesExecs = await prisma.exec_pymes.findMany({ orderBy: { created_at: 'desc' }, take: 20 });
 
-        let allExecs: any[] = [...chatExecs, ...asstExecs, ...pymesExecs];
+        let allExecs: any[] = [...chatExecs, ...asstExecs];
         allExecs.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
         res.json(allExecs.slice(0, 50));
     } catch (e: any) {
@@ -63,13 +77,12 @@ const processWebhook = async (req: Request, res: Response, provider: string) => 
 // 🚫 NO_PR: qaDocInjector inyecta systemprompt_doc desde BD (solo QA).
 //    En producción el frontend real ya lo envía. Eliminar estas líneas.
 // ============================================================
-router.post('/openai-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('llm'), (req, res) => processWebhook(req, res, 'openai'));
-router.post('/gemini-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('llm'), (req, res) => processWebhook(req, res, 'gemini'));
-router.post('/anthropic-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('llm'), (req, res) => processWebhook(req, res, 'anthropic'));
-router.post('/mistrall-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('llm'), (req, res) => processWebhook(req, res, 'mistral'));
-router.post('/deepseek-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('llm'), (req, res) => processWebhook(req, res, 'deepseek'));
-router.post('/assistant-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('assistant'), (req, res) => processWebhook(req, res, 'assistant'));
-router.post('/pymes-assistant-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('pymes'), (req, res) => processWebhook(req, res, 'pymes-assistant'));
-router.post('/meta-assistant-chat', apiKeyMiddleware as any, handleUpload, qaDocInjector('meta'), (req, res) => processWebhook(req, res, 'meta-assistant'));
+router.post(`/${qaPrefix}openai-chat`, apiKeyMiddleware as any, handleUpload, docInjector('llm'), (req, res) => processWebhook(req, res, 'openai'));
+router.post(`/${qaPrefix}gemini-chat`, apiKeyMiddleware as any, handleUpload, docInjector('llm'), (req, res) => processWebhook(req, res, 'gemini'));
+router.post(`/${qaPrefix}anthropic-chat`, apiKeyMiddleware as any, handleUpload, docInjector('llm'), (req, res) => processWebhook(req, res, 'anthropic'));
+router.post(`/${qaPrefix}mistrall-chat`, apiKeyMiddleware as any, handleUpload, docInjector('llm'), (req, res) => processWebhook(req, res, 'mistral'));
+router.post(`/${qaPrefix}deepseek-chat`, apiKeyMiddleware as any, handleUpload, docInjector('llm'), (req, res) => processWebhook(req, res, 'deepseek'));
+router.post(`/${qaPrefix}assistant-chat`, apiKeyMiddleware as any, handleUpload, docInjector('assistant'), (req, res) => processWebhook(req, res, 'assistant'));
+router.post(`/${qaPrefix}meta-assistant-chat`, apiKeyMiddleware as any, handleUpload, docInjector('meta'), (req, res) => processWebhook(req, res, 'meta-assistant'));
 
 export default router;

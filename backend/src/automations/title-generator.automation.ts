@@ -6,7 +6,7 @@ export class TitleGeneratorAutomation {
     /**
      * Tarea en segundo plano ("Fire and Forget") que genera un título
      * para la conversación si aún no lo tiene.
-     * Ahora soporta los 4 modos: LLM, Assistant, Pymes, Beta.
+     * Ahora soporta los modos: LLM, Assistant, Meta.
      */
     async generateTitleAsync(sessionId: string, firstMessage: string, provider: string, idAssistant?: string) {
         if (!sessionId || !firstMessage || firstMessage.trim() === '') return;
@@ -20,8 +20,6 @@ export class TitleGeneratorAutomation {
             let dbTable: any;
             if (provider === 'assistant') {
                 dbTable = db.prueba_chatsassistants;
-            } else if (provider === 'pymes-assistant') {
-                dbTable = db.prueba_chatspymes;
             } else if (provider === 'meta-assistant') {
                 dbTable = db.prueba_chatsmeta;
             } else {
@@ -63,7 +61,7 @@ export class TitleGeneratorAutomation {
             if (chatRow) {
                 const updateData: any = { titulo: newTitle, updated_at: new Date() };
                 if (provider === 'assistant' && idAssistant) updateData.id_assistant = idAssistant;
-                if (provider === 'pymes-assistant' && idAssistant) updateData.id_assistant = idAssistant;
+
                 if (provider === 'meta-assistant' && idAssistant) updateData.meta_id = idAssistant;
                 await dbTable.update({ where: { id: chatRow.id }, data: updateData });
             } else {
@@ -73,7 +71,7 @@ export class TitleGeneratorAutomation {
                     systemprompt_doc: ''
                 };
                 if (provider === 'assistant' && idAssistant) createData.id_assistant = idAssistant;
-                if (provider === 'pymes-assistant' && idAssistant) createData.id_assistant = idAssistant;
+
                 if (provider === 'meta-assistant' && idAssistant) createData.meta_id = idAssistant;
                 await dbTable.create({ data: createData });
             }

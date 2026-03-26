@@ -80,14 +80,18 @@ const limiter = rateLimit({
     legacyHeaders: false,
     message: { status: 'error', message: '¡Peligro! DEMASIADAS PETICIONES: Sistema de Defensa Anti-DDoS Activado.' }
 });
-app.use('/assistant-chat', limiter);
-app.use('/pymes-assistant-chat', limiter);
 app.use('/gemini-chat', limiter);
 app.use('/openai-chat', limiter);
 app.use('/anthropic-chat', limiter);
 app.use('/mistrall-chat', limiter);
 app.use('/deepseek-chat', limiter);
+app.use('/assistant-chat', limiter);
 app.use('/meta-assistant-chat', limiter);
+
+// Prefijos en Staging
+if (process.env.APP_ENV === 'staging') {
+    app.use(/^\/QA/, limiter);
+}
 
 // Middleware to parse JSON bodies & allow Cross-Origin Requests
 app.use(cors());
@@ -109,13 +113,25 @@ app.use('/downloads', express.static(path.join(process.cwd(), 'public/downloads'
 // Mount the webhook routes
 app.use(webhookRoutes);
 
+// Configuración dinámica para el Frontend
+app.get('/config.js', (req, res) => {
+    const isStaging = process.env.APP_ENV === 'staging';
+    const prefix = isStaging ? 'QA' : '';
+    res.type('application/javascript');
+    res.send(`window.API_PREFIX = "${prefix}";`);
+});
+
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    const isStaging = process.env.APP_ENV === 'staging';
+    const qaPrefix = isStaging ? 'QA' : '';
+
+    console.log(`Server is running on port ${PORT} [${process.env.APP_ENV || 'production'}]`);
     console.log('Webhook routes are active:');
-    console.log(`- POST http://localhost:${PORT}/openai-chat`);
-    console.log(`- POST http://localhost:${PORT}/gemini-chat`);
-    console.log(`- POST http://localhost:${PORT}/anthropic-chat`);
-    console.log(`- POST http://localhost:${PORT}/mistrall-chat`);
-    console.log(`- POST http://localhost:${PORT}/deepseek-chat`);
-    console.log(`- POST http://localhost:${PORT}/assistant-chat`);
+    console.log(`- POST http://localhost:${PORT}/${qaPrefix}openai-chat`);
+    console.log(`- POST http://localhost:${PORT}/${qaPrefix}gemini-chat`);
+    console.log(`- POST http://localhost:${PORT}/${qaPrefix}anthropic-chat`);
+    console.log(`- POST http://localhost:${PORT}/${qaPrefix}mistrall-chat`);
+    console.log(`- POST http://localhost:${PORT}/${qaPrefix}deepseek-chat`);
+    console.log(`- POST http://localhost:${PORT}/${qaPrefix}assistant-chat`);
+    console.log(`- POST http://localhost:${PORT}/${qaPrefix}meta-assistant-chat`);
 });

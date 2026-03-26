@@ -129,7 +129,8 @@ async function sendMessage() {
     const specialistId = specialistSelect ? specialistSelect.value : '';
 
     try {
-        const endpointUrl = '/meta-assistant-chat';
+        const prefix = window.API_PREFIX || '';
+        const endpointUrl = `${prefix}/meta-assistant-chat`;
         const formData = new FormData();
         formData.append('session_id', session_id);
         formData.append('model', model);
@@ -137,7 +138,7 @@ async function sendMessage() {
 
         if (specialistId) {
             // MODO ESPECIALISTA: el agente tiene su propio prompt/modelo
-            formData.append('beta_id', specialistId);
+            formData.append('meta_id', specialistId);
         } else {
             // MODO GENÉRICO: enviamos systemPrompt
             const systemPromptEl = document.getElementById('systemPrompt');

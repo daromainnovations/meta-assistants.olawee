@@ -16,8 +16,6 @@ export class ExecutionLoggerService {
 
             if (provider === 'assistant') {
                 tableTarget = prisma.exec_assistants;
-            } else if (provider === 'pymes-assistant') {
-                tableTarget = prisma.exec_pymes;
             } else {
                 tableTarget = prisma.exec_chats;
             }

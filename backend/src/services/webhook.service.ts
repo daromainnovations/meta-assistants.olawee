@@ -2,7 +2,7 @@ import { chatHandlerService } from './chat/chat-handler.service';
 import { documentService } from './shared/document.service';
 import { titleGeneratorAutomation } from '../automations/title-generator.automation';
 import { assistantHandlerService } from './assistants/assistant-handler.service';
-import { pymesHandlerService } from './pymes/pymes-handler.service';
+
 import { metaHandlerService } from './meta-assistants/meta-handler.service';
 import { executionLoggerService } from './shared/execution-logger.service';
 import { getPrisma } from './shared/prisma.service';
@@ -22,7 +22,7 @@ async function getDocumentContext(provider: string, sessionId: string): Promise<
     try {
         let dbTable: any;
         if (provider === 'assistant') dbTable = db.prueba_chatsassistants;
-        else if (provider === 'pymes-assistant') dbTable = db.prueba_chatspymes;
+
         else if (provider === 'meta-assistant') dbTable = db.prueba_chatsmeta;
         else dbTable = db.prueba_chatsllms;
 
@@ -43,7 +43,7 @@ async function saveDocumentContext(provider: string, sessionId: string, docConte
     try {
         let dbTable: any;
         if (provider === 'assistant') dbTable = db.prueba_chatsassistants;
-        else if (provider === 'pymes-assistant') dbTable = db.prueba_chatspymes;
+
         else if (provider === 'meta-assistant') dbTable = db.prueba_chatsmeta;
         else dbTable = db.prueba_chatsllms;
 
@@ -172,16 +172,7 @@ export class WebhookService {
                         transformedBody.model, transformedBody.history, finalDocumentContext, transformedBody.tools
                     );
                 }
-            } else if (provider === 'pymes-assistant') {
-                if (!transformedBody.model || !transformedBody.systemPrompt) {
-                    result = { status: 'error', message: 'Se requiere model y systemPrompt para Pymes.' };
-                } else {
-                    console.log(`[WebhookService] Routing to PYMES ASSISTANT Handler (${transformedBody.model})`);
-                    result = await pymesHandlerService.processMessage(
-                        transformedBody.session_id, transformedBody.chatInput, transformedBody.systemPrompt,
-                        transformedBody.model, transformedBody.history, finalDocumentContext, transformedBody.tools
-                    );
-                }
+
             } else if (provider === 'meta-assistant') {
                 const metaId = transformedBody.meta_id;
 

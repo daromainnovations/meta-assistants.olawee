@@ -64,7 +64,8 @@ async function sendMessage() {
 
     // Enviar Petición al Backend node.js (Asistentes)
     try {
-        const endpointUrl = '/assistant-chat';
+        const prefix = window.API_PREFIX || '';
+        const endpointUrl = `${prefix}/assistant-chat`;
         const formData = new FormData();
         formData.append('session_id', session_id);
         formData.append('model', model);

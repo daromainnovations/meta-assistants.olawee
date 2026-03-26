@@ -14,7 +14,7 @@ import { getPrisma } from '../services/shared/prisma.service';
 //   - Sin doc nuevo + sin doc en BD → no hace nada
 // ============================================================
 
-type ProviderType = 'llm' | 'assistant' | 'pymes' | 'beta';
+export type ProviderType = 'llm' | 'assistant' | 'meta';
 
 /**
  * Tabla de chat correspondiente a cada modo.
@@ -23,8 +23,7 @@ type ProviderType = 'llm' | 'assistant' | 'pymes' | 'beta';
 const TABLE_MAP: Record<ProviderType, string> = {
     llm: 'prueba_chatsllms',
     assistant: 'prueba_chatsassistants',
-    pymes: 'prueba_chatspymes',
-    beta: 'prueba_chatsbeta',
+    meta: 'prueba_chatsmeta',
 };
 
 /**
@@ -53,15 +52,9 @@ async function getStoredDocContext(providerType: ProviderType, sessionId: string
                     orderBy: { id: 'desc' }
                 });
                 break;
-            case 'pymes':
-                record = await db.prueba_chatspymes.findFirst({
-                    where: { session_id: sessionId },
-                    select: { systemprompt_doc: true },
-                    orderBy: { id: 'desc' }
-                });
-                break;
-            case 'beta':
-                record = await db.prueba_chatsbeta.findFirst({
+
+            case 'meta':
+                record = await db.prueba_chatsmeta.findFirst({
                     where: { session_id: sessionId },
                     select: { systemprompt_doc: true },
                     orderBy: { id: 'desc' }
@@ -86,7 +79,7 @@ async function getStoredDocContext(providerType: ProviderType, sessionId: string
  * Uso en webhook.routes.ts:
  *   router.post('/gemini-chat', apiKeyMiddleware, handleUpload, qaDocInjector('llm'), handler)
  *
- * @param providerType - El tipo de proveedor ('llm' | 'assistant' | 'pymes' | 'beta')
+ * @param providerType - El tipo de proveedor ('llm' | 'assistant' | 'meta')
  */
 export function qaDocInjector(providerType: ProviderType) {
     return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -97,10 +90,10 @@ export function qaDocInjector(providerType: ProviderType) {
             return next();
         }
 
-        // Los especialistas Beta (invoice_checker, etc.) gestionan sus propios archivos
+        // Los especialistas Meta (invoice_checker, etc.) gestionan sus propios archivos
         // y no usan systemprompt_doc. Los saltamos para no interferir.
-        if (providerType === 'beta' && req.body?.beta_id) {
-            console.log(`[QA-DocInjector] Skipping Beta Specialist "${req.body.beta_id}" — no systemprompt_doc needed.`);
+        if (providerType === 'meta' && req.body?.meta_id) {
+            console.log(`[QA-DocInjector] Skipping Meta Specialist "${req.body.meta_id}" — no systemprompt_doc needed.`);
             return next();
         }
 
