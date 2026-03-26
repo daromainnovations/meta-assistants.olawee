@@ -5,7 +5,7 @@ import { getPrisma } from '../shared/prisma.service';
  * ============================================================
  * 🧪 META MEMORY SERVICE
  * Gestiona el historial de conversaciones del modo Meta
- * Tablas: prueba_chatsmeta / prueba_mensajesmeta
+ * Tablas: chatsmeta / mensajesmeta
  * ============================================================
  */
 export class MetaMemoryService {
@@ -18,7 +18,7 @@ export class MetaMemoryService {
         console.log(`[MetaMemory] Loading chat history for session: ${sessionId}`);
 
         try {
-            const mensajes = await db.prueba_mensajesmeta.findMany({
+            const mensajes = await db.mensajesmeta.findMany({
                 where: { session_id: sessionId },
                 orderBy: { id: 'asc' }
             });
@@ -48,12 +48,12 @@ export class MetaMemoryService {
     }
 
     /**
-     * Lee el systemprompt_doc guardado para esta sesión desde prueba_chatsmeta
+     * Lee el systemprompt_doc guardado para esta sesión desde chatsmeta
      */
     async getDocumentContext(sessionId: string): Promise<string> {
         const db = getPrisma();
         try {
-            const row = await db.prueba_chatsmeta.findFirst({ where: { session_id: sessionId } });
+            const row = await db.chatsmeta.findFirst({ where: { session_id: sessionId } });
             return row?.systemprompt_doc || '';
         } catch (error) {
             console.error(`[MetaMemory] Error fetching document context for ${sessionId}:`, error);
@@ -68,7 +68,7 @@ export class MetaMemoryService {
         const db = getPrisma();
 
         try {
-            await db.prueba_mensajesmeta.create({
+            await db.mensajesmeta.create({
                 data: {
                     session_id: sessionId,
                     message: {

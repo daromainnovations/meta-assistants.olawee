@@ -12,7 +12,7 @@ export class AssistantMemoryService {
         console.log(`[AssistantMemory] Loading chat history for session: ${sessionId}`);
 
         try {
-            const mensajes = await db.prueba_mensajesassistants.findMany({
+            const mensajes = await db.mensajes_agentes.findMany({
                 where: { session_id: sessionId },
                 orderBy: { id: 'asc' }
             });
@@ -43,12 +43,12 @@ export class AssistantMemoryService {
     }
 
     /**
-     * Lee el systemprompt_doc guardado para esta sesión desde prueba_chatsassistants
+     * Lee el systemprompt_doc guardado para esta sesión desde chats_agentes
      */
     async getDocumentContext(sessionId: string): Promise<string> {
         const db = getPrisma();
         try {
-            const row = await db.prueba_chatsassistants.findFirst({ where: { session_id: sessionId } });
+            const row = await db.chats_agentes.findFirst({ where: { session_id: sessionId } });
             return row?.systemprompt_doc || '';
         } catch (error) {
             console.error(`[AssistantMemory] Error fetching document context for ${sessionId}:`, error);
@@ -69,7 +69,7 @@ export class AssistantMemoryService {
                 timestamp: new Date().toISOString()
             };
 
-            await db.prueba_mensajesassistants.create({
+            await db.mensajes_agentes.create({
                 data: {
                     session_id: sessionId,
                     message: messageJson

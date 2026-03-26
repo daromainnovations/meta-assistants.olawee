@@ -21,9 +21,9 @@ export type ProviderType = 'llm' | 'assistant' | 'meta';
  * Aquí es donde se lee el systemprompt_doc almacenado.
  */
 const TABLE_MAP: Record<ProviderType, string> = {
-    llm: 'prueba_chatsllms',
-    assistant: 'prueba_chatsassistants',
-    meta: 'prueba_chatsmeta',
+    llm: 'chatsllms',
+    assistant: 'chats_agentes',
+    meta: 'chatsmeta',
 };
 
 /**
@@ -39,14 +39,14 @@ async function getStoredDocContext(providerType: ProviderType, sessionId: string
 
         switch (providerType) {
             case 'llm':
-                record = await db.prueba_chatsllms.findFirst({
+                record = await db.chatsllms.findFirst({
                     where: { session_id: sessionId },
                     select: { systemprompt_doc: true },
                     orderBy: { id: 'desc' }
                 });
                 break;
             case 'assistant':
-                record = await db.prueba_chatsassistants.findFirst({
+                record = await db.chats_agentes.findFirst({
                     where: { session_id: sessionId },
                     select: { systemprompt_doc: true },
                     orderBy: { id: 'desc' }
@@ -54,7 +54,7 @@ async function getStoredDocContext(providerType: ProviderType, sessionId: string
                 break;
 
             case 'meta':
-                record = await db.prueba_chatsmeta.findFirst({
+                record = await db.chatsmeta.findFirst({
                     where: { session_id: sessionId },
                     select: { systemprompt_doc: true },
                     orderBy: { id: 'desc' }
