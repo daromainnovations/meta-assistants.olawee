@@ -21,10 +21,9 @@ async function getDocumentContext(provider: string, sessionId: string): Promise<
     const db = getPrisma();
     try {
         let dbTable: any;
-        if (provider === 'assistant') dbTable = db.prueba_chatsassistants;
-
-        else if (provider === 'meta-assistant') dbTable = db.prueba_chatsmeta;
-        else dbTable = db.prueba_chatsllms;
+        if (provider === 'assistant') dbTable = db.chats_agentes;
+        else if (provider === 'meta-assistant') dbTable = db.chatsmeta;
+        else dbTable = db.chatsllms;
 
         const existing = await dbTable.findFirst({ where: { session_id: sessionId } });
         return existing?.systemprompt_doc || '';
@@ -42,10 +41,9 @@ async function saveDocumentContext(provider: string, sessionId: string, docConte
     const db = getPrisma();
     try {
         let dbTable: any;
-        if (provider === 'assistant') dbTable = db.prueba_chatsassistants;
-
-        else if (provider === 'meta-assistant') dbTable = db.prueba_chatsmeta;
-        else dbTable = db.prueba_chatsllms;
+        if (provider === 'assistant') dbTable = db.chats_agentes;
+        else if (provider === 'meta-assistant') dbTable = db.chatsmeta;
+        else dbTable = db.chatsllms;
 
         const existing = await dbTable.findFirst({ where: { session_id: sessionId } });
         if (existing) {

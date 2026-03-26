@@ -19,12 +19,12 @@ export class TitleGeneratorAutomation {
             // ============================================================
             let dbTable: any;
             if (provider === 'assistant') {
-                dbTable = db.prueba_chatsassistants;
+                dbTable = db.chats_agentes;
             } else if (provider === 'meta-assistant') {
-                dbTable = db.prueba_chatsmeta;
+                dbTable = db.chatsmeta;
             } else {
                 // LLMs: gemini, openai, anthropic, mistral, deepseek
-                dbTable = db.prueba_chatsllms;
+                dbTable = db.chatsllms;
             }
 
             // 1. Buscar la sesión en base de datos

@@ -123,7 +123,7 @@ export class DocComparatorAgent {
             const db = getPrisma();
             let previousDocContext = '';
             try {
-                const chatRow = await db.prueba_chatsmeta.findFirst({ where: { session_id: sessionId } });
+                const chatRow = await db.chatsmeta.findFirst({ where: { session_id: sessionId } });
                 if (chatRow?.systemprompt_doc && chatRow.systemprompt_doc.trim()) {
                     previousDocContext = chatRow.systemprompt_doc;
                     console.log(`[DocComparator] 📂 Loaded ${previousDocContext.length} chars of previous doc context from DB.`);
@@ -187,15 +187,15 @@ export class DocComparatorAgent {
             // ============================================================
             if (newDocContext.trim() && sessionId) {
                 const docToSave = combinedDocContext.trim();
-                db.prueba_chatsmeta.findFirst({ where: { session_id: sessionId } })
+                db.chatsmeta.findFirst({ where: { session_id: sessionId } })
                     .then((existing: any) => {
                         if (existing) {
-                            return db.prueba_chatsmeta.update({
+                            return db.chatsmeta.update({
                                 where: { id: existing.id },
                                 data: { systemprompt_doc: docToSave, updated_at: new Date() }
                             });
                         } else {
-                            return db.prueba_chatsmeta.create({
+                            return db.chatsmeta.create({
                                 data: { session_id: sessionId, systemprompt_doc: docToSave, titulo: sessionId, meta_id: 'doc_comparator' }
                             });
                         }
