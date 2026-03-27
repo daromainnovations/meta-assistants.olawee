@@ -2,9 +2,8 @@ import { chatHandlerService } from './chat/chat-handler.service';
 import { documentService } from './shared/document.service';
 import { titleGeneratorAutomation } from '../automations/title-generator.automation';
 import { assistantHandlerService } from './assistants/assistant-handler.service';
-
 import { metaHandlerService } from './meta-assistants/meta-handler.service';
-import { executionLoggerService } from './shared/execution-logger.service';
+import { executionLoggerService } from '../executions/execution-logger.service';
 import { getPrisma } from './shared/prisma.service';
 
 export enum WebhookType {
@@ -158,6 +157,7 @@ export class WebhookService {
         }
 
         // 3. Routing
+        const startTime = Date.now();
         let result: any;
         try {
             if (provider === 'assistant') {
@@ -189,14 +189,14 @@ export class WebhookService {
                 result = await chatHandlerService.processMessage(provider, transformedBody, finalDocumentContext);
             }
 
-            // Log successful execution (n8n style)
-            executionLoggerService.logExecution(provider, transformedBody, result, 'SUCCESS');
+        // Log successful execution with duration
+            executionLoggerService.logExecution(provider, transformedBody, result, 'SUCCESS', Date.now() - startTime);
             return result;
 
         } catch (error: any) {
-            // Log failed execution
+            // Log failed execution with error trace
             const errorOutput = { status: 'error', message: error.message || error };
-            executionLoggerService.logExecution(provider, transformedBody, errorOutput, 'ERROR');
+            executionLoggerService.logExecution(provider, transformedBody, errorOutput, 'ERROR', Date.now() - startTime, error);
             throw error;
         }
     }

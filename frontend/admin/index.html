@@ -4,108 +4,196 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OLAWEE | Panel de Ejecuciones</title>
-    <!-- Tailwind CSS -->
+    <title>OLAWEE | Execution Control</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Prism.js para colorear el JSON visualmente como en VSCode o N8N -->
-    <link href="https://cdnjs.cloudflare.com/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
+        * { font-family: 'Inter', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
 
-        .custom-scrollbar::-webkit-scrollbar-track {
+        body { background: #0a0f1a; }
+
+        /* Animación de pulso para el indicador live */
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.85); }
+        }
+        .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+
+        /* Borde izquierdo de color en las filas */
+        .row-success { border-left: 3px solid #22c55e; }
+        .row-error   { border-left: 3px solid #ef4444; background: rgba(239,68,68,0.04); }
+
+        /* Animación de entrada de filas */
+        @keyframes fadeInRow {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .row-enter { animation: fadeInRow 0.25s ease-out; }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0d1525; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #2d3f5e; border-radius: 3px; }
+
+        /* Stats cards */
+        .stat-card {
+            background: linear-gradient(135deg, #111827 0%, #0f172a 100%);
+            border: 1px solid #1e2d45;
+            border-radius: 12px;
+            padding: 20px 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+        }
+        .stat-card.blue::before  { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+        .stat-card.green::before { background: linear-gradient(90deg, #22c55e, #4ade80); }
+        .stat-card.red::before   { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .stat-card.purple::before{ background: linear-gradient(90deg, #a855f7, #c084fc); }
+
+        /* Badge del provider */
+        .badge-llm       { background: #1e3a5f; color: #60a5fa; }
+        .badge-assistant { background: #2d1b4e; color: #c084fc; }
+        .badge-meta      { background: #1a3a2a; color: #4ade80; }
+
+        /* Filter tabs */
+        .tab-active { background: #1e40af; color: white; border-color: #3b82f6; }
+        .tab-inactive { background: #111827; color: #6b7280; border-color: #1f2937; }
+        .tab-inactive:hover { background: #1f2937; color: #9ca3af; }
+
+        /* Modal backdrop */
+        .modal-backdrop { backdrop-filter: blur(8px); background: rgba(0,0,0,0.8); }
+
+        /* Duration bar */
+        .duration-bar {
+            height: 3px;
+            border-radius: 2px;
             background: #1f2937;
+            overflow: hidden;
         }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #4b5563;
-            border-radius: 4px;
+        .duration-fill {
+            height: 100%;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
         }
     </style>
 </head>
 
-<body class="bg-gray-900 text-gray-100 font-sans antialiased min-h-screen">
+<body class="text-gray-100 min-h-screen">
 
-    <!-- Navbar Superior -->
-    <header class="bg-gray-800 border-b border-gray-700 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16 items-center">
-                <div class="flex items-center gap-3">
-                    <span class="text-2xl">🛡️</span>
-                    <h1 class="text-xl font-bold tracking-tight text-white">OLAWEE <span
-                            class="text-blue-400 font-light">Execution Viewer</span></h1>
-                </div>
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- NAVBAR -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <header style="background: #0d1525; border-bottom: 1px solid #1e2d45;">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div style="background: linear-gradient(135deg, #1d4ed8, #7c3aed); border-radius: 8px; padding: 6px 10px; font-size: 18px;">⚡</div>
                 <div>
-                    <span
-                        class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-900 text-green-300">
-                        <span class="h-2 w-2 bg-green-400 rounded-full mr-2"></span>
-                        Sistema Operativo
-                    </span>
+                    <h1 class="text-lg font-bold text-white tracking-tight">OLAWEE <span class="text-blue-400 font-light">Execution Control</span></h1>
+                    <p class="text-xs text-gray-500 mono" id="envBadge">cargando entorno...</p>
                 </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <!-- Auto-refresh toggle -->
+                <button id="autoRefreshBtn" onclick="toggleAutoRefresh()"
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm border border-gray-700 text-gray-400 hover:border-gray-500 transition-all">
+                    <span class="pulse-dot h-2 w-2 rounded-full bg-gray-500" id="autoRefreshDot"></span>
+                    <span id="autoRefreshLabel">Auto-refresh OFF</span>
+                </button>
+                <button onclick="refreshData()"
+                    class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium text-white transition-all"
+                    style="background: #1d4ed8; border: 1px solid #2563eb;">
+                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Actualizar
+                </button>
             </div>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="max-w-7xl mx-auto px-6 py-8">
 
-        <div class="flex items-center justify-between mb-6">
-            <h2 class="text-lg font-semibold text-gray-200">Últimas Ejecuciones <span id="filterLabel"
-                    class="text-sm font-normal text-gray-400 ml-2">(Global)</span></h2>
-            <div class="flex gap-2">
-                <button onclick="setFilter('ALL')"
-                    class="filter-btn bg-gray-700 hover:bg-gray-600 outline outline-2 outline-blue-500 text-white px-3 py-1.5 rounded shadow text-sm transition-all">🌐
-                    Todas</button>
-                <button onclick="setFilter('CHATS')"
-                    class="filter-btn bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white px-3 py-1.5 rounded shadow text-sm transition-all">🤖
-                    LLM Chats</button>
-                <button onclick="setFilter('ASSISTANTS')"
-                    class="filter-btn bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white px-3 py-1.5 rounded shadow text-sm transition-all">🧠
-                    Assistants</button>
-                <button onclick="setFilter('META')"
-                    class="filter-btn bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white px-3 py-1.5 rounded shadow text-sm transition-all">✨
-                    META</button>
-
-                <button id="refreshBtn" onclick="fetchExecutions()"
-                    class="ml-4 bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded shadow transition-colors flex items-center gap-2 text-sm font-medium">
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Actualizar Datos
-                </button>
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- STATS CARDS -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="stat-card blue">
+                <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Ejecuciones</p>
+                <p class="text-3xl font-bold text-white" id="statTotal">—</p>
+                <p class="text-xs text-gray-500 mt-1">últimos 7 días</p>
+            </div>
+            <div class="stat-card green">
+                <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Exitosas</p>
+                <p class="text-3xl font-bold text-green-400" id="statSuccess">—</p>
+                <p class="text-xs text-gray-500 mt-1" id="statSuccessRate">—</p>
+            </div>
+            <div class="stat-card red">
+                <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Con Error</p>
+                <p class="text-3xl font-bold text-red-400" id="statErrors">—</p>
+                <p class="text-xs text-gray-500 mt-1" id="statErrorRate">—</p>
+            </div>
+            <div class="stat-card purple">
+                <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Última Ejecución</p>
+                <p class="text-sm font-semibold text-purple-300 mt-2" id="statLast">—</p>
             </div>
         </div>
 
-        <!-- Tabla estilo N8N -->
-        <div class="bg-gray-800 shadow-xl rounded-lg overflow-hidden border border-gray-700">
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- FILTROS -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <div class="flex gap-2 flex-wrap">
+                <button onclick="setFilter('all')" id="tab-all"
+                    class="filter-tab px-4 py-2 rounded-lg text-sm font-medium border transition-all tab-active">
+                    🌐 Todas
+                </button>
+                <button onclick="setFilter('llm')" id="tab-llm"
+                    class="filter-tab px-4 py-2 rounded-lg text-sm font-medium border transition-all tab-inactive">
+                    🤖 LLM Chats
+                </button>
+                <button onclick="setFilter('assistant')" id="tab-assistant"
+                    class="filter-tab px-4 py-2 rounded-lg text-sm font-medium border transition-all tab-inactive">
+                    🧠 Assistants
+                </button>
+                <button onclick="setFilter('meta')" id="tab-meta"
+                    class="filter-tab px-4 py-2 rounded-lg text-sm font-medium border transition-all tab-inactive">
+                    ✨ Meta
+                </button>
+                <button onclick="setFilter('error')" id="tab-error"
+                    class="filter-tab px-4 py-2 rounded-lg text-sm font-medium border transition-all tab-inactive">
+                    🔴 Solo Errores
+                </button>
+            </div>
+            <p class="text-xs text-gray-500 mono" id="filterInfo">Mostrando todas las ejecuciones</p>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- TABLA -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div class="rounded-xl overflow-hidden" style="border: 1px solid #1e2d45; background: #0d1525;">
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-700">
-                    <thead class="bg-gray-750">
+                <table class="min-w-full">
+                    <thead style="background: #111827; border-bottom: 1px solid #1e2d45;">
                         <tr>
-                            <th scope="col"
-                                class="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                                Estado</th>
-                            <th scope="col"
-                                class="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                                Flujo / Proveedor</th>
-                            <th scope="col"
-                                class="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                                Fecha Invocación</th>
-                            <th scope="col"
-                                class="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                                Ejecución ID</th>
-                            <th scope="col"
-                                class="px-6 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                                Acciones</th>
+                            <th class="px-5 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider w-24">Estado</th>
+                            <th class="px-5 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Flujo / Proveedor</th>
+                            <th class="px-5 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Entorno</th>
+                            <th class="px-5 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Duración</th>
+                            <th class="px-5 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Fecha</th>
+                            <th class="px-5 py-3.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Acción</th>
                         </tr>
                     </thead>
-                    <tbody id="executionsTable" class="divide-y divide-gray-700 bg-gray-800/50">
-                        <!-- Las filas se inyectarán por JS aquí -->
+                    <tbody id="executionsTable" class="divide-y" style="border-color: #1a2540;">
                         <tr>
-                            <td colspan="5" class="px-6 py-8 text-center text-gray-400">
-                                Cargando ejecuciones desde Supabase...
+                            <td colspan="6" class="px-5 py-12 text-center text-gray-500">
+                                <div class="flex flex-col items-center gap-2">
+                                    <span class="text-2xl">⚡</span>
+                                    <span class="text-sm">Cargando ejecuciones...</span>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
@@ -115,78 +203,86 @@
 
     </main>
 
-    <!-- Modal para ver el JSON al estilo N8N -->
-    <div id="jsonModal"
-        class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-        <div
-            class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl border border-gray-600 flex flex-col max-h-[90vh]">
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- MODAL DE INSPECCIÓN -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div id="jsonModal" class="fixed inset-0 modal-backdrop hidden z-50 flex items-center justify-center p-4">
+        <div class="w-full max-w-5xl rounded-2xl flex flex-col max-h-[90vh]"
+            style="background: #0d1525; border: 1px solid #1e2d45;">
 
             <!-- Header Modal -->
-            <div class="px-6 py-4 border-b border-gray-700 flex justify-between items-center bg-gray-800 rounded-t-xl">
-                <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                    <span id="modalIcon">📝</span> Detalles de Ejecución
-                </h3>
-                <button onclick="closeModal()" class="text-gray-400 hover:text-white transition">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
+            <div class="px-6 py-4 flex justify-between items-center" style="border-bottom: 1px solid #1e2d45;">
+                <div class="flex items-center gap-3">
+                    <span id="modalIcon" class="text-2xl">📝</span>
+                    <div>
+                        <h3 class="text-base font-bold text-white">Detalles de Ejecución</h3>
+                        <p class="text-xs mono text-gray-500" id="modalMeta"></p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span id="modalEnvBadge" class="text-xs px-2 py-1 rounded mono"></span>
+                    <span id="modalDuration" class="text-xs px-2 py-1 rounded mono text-blue-400" style="background: #1e3a5f;"></span>
+                    <button onclick="closeModal()" class="text-gray-500 hover:text-white transition p-1">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Error banner (solo si ERROR) -->
+            <div id="errorBanner" class="hidden px-6 py-3 flex items-start gap-3" style="background: rgba(239,68,68,0.1); border-bottom: 1px solid rgba(239,68,68,0.2);">
+                <span class="text-red-400 text-lg mt-0.5">⚠️</span>
+                <div>
+                    <p class="text-sm font-semibold text-red-400">Error detectado</p>
+                    <p class="text-xs text-red-300 mono mt-0.5" id="errorMessage"></p>
+                </div>
             </div>
 
             <!-- Body Modal -->
-            <div class="p-6 overflow-y-auto custom-scrollbar flex-1 bg-gray-900/50">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                    <!-- Box: INPUT -->
+            <div class="p-6 overflow-y-auto custom-scrollbar flex-1" style="background: #080d18;">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                        <h4
-                            class="text-sm font-semibold text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                            </svg>
-                            Datos de Entrada (Input)
+                        <h4 class="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14"/></svg>
+                            Entrada (Input)
                         </h4>
-                        <div class="bg-gray-900 rounded border border-gray-700 p-1">
-                            <pre><code id="inputJson" class="language-json custom-scrollbar text-sm rounded"></code></pre>
+                        <div class="rounded-lg overflow-hidden" style="border: 1px solid #1e2d45;">
+                            <pre class="custom-scrollbar text-xs p-3 overflow-auto max-h-64" style="background: #060b14;"><code id="inputJson" class="language-json"></code></pre>
                         </div>
                     </div>
-
-                    <!-- Box: OUTPUT -->
                     <div>
-                        <h4
-                            class="text-sm font-semibold text-green-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                            </svg>
-                            Datos de Salida (Output)
+                        <h4 class="text-xs font-semibold text-green-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7"/></svg>
+                            Salida (Output)
                         </h4>
-                        <div class="bg-gray-900 rounded border border-gray-700 p-1">
-                            <pre><code id="outputJson" class="language-json custom-scrollbar text-sm rounded"></code></pre>
+                        <div class="rounded-lg overflow-hidden" style="border: 1px solid #1e2d45;">
+                            <pre class="custom-scrollbar text-xs p-3 overflow-auto max-h-64" style="background: #060b14;"><code id="outputJson" class="language-json"></code></pre>
                         </div>
                     </div>
-
+                    <!-- Error trace (solo si ERROR) -->
+                    <div id="errorSection" class="hidden md:col-span-2">
+                        <h4 class="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            🔥 Error Trace
+                        </h4>
+                        <div class="rounded-lg overflow-hidden" style="border: 1px solid rgba(239,68,68,0.3);">
+                            <pre class="custom-scrollbar text-xs p-3 overflow-auto max-h-48" style="background: rgba(239,68,68,0.05);"><code id="errorJson" class="language-json"></code></pre>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- Footer Modal -->
-            <div
-                class="px-6 py-4 border-t border-gray-700 bg-gray-800 rounded-b-xl flex justify-between items-center text-sm">
-                <span id="modalMeta" class="text-gray-400 font-mono"></span>
+            <div class="px-6 py-3 flex justify-end" style="border-top: 1px solid #1e2d45;">
                 <button onclick="closeModal()"
-                    class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition font-medium">Cerrar
-                    Visor</button>
+                    class="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white transition"
+                    style="background: #1f2937; border: 1px solid #374151;">
+                    Cerrar
+                </button>
             </div>
-
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/libs/prism/1.29.0/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/libs/prism/1.29.0/components/prism-json.min.js"></script>
-    <script src="app.js?v=6"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="app.js?v=10"></script>
 </body>
-
 </html>

@@ -3,6 +3,7 @@ import multer from 'multer';
 import { webhookService } from '../services/webhook.service';
 import { apiKeyMiddleware } from '../middleware/auth.middleware';
 import { qaDocInjector } from '../no_PR/qa-doc-injector.middleware'; // 🚫 NO_PR — Eliminar en producción
+import { getExecutions } from '../executions/executions.controller';
 
 import { PrismaClient } from '@prisma/client';
 
@@ -25,18 +26,7 @@ if (isStaging) {
 const docInjector = isStaging ? qaDocInjector : () => (req: Request, res: Response, next: any) => next();
 
 // === DASHBOARD ROUTE (Libre de API Key para Visualizar el Panel) ===
-router.get('/api/executions', async (req, res) => {
-    try {
-        const chatExecs = await prisma.exec_chats.findMany({ orderBy: { created_at: 'desc' }, take: 20 });
-        const asstExecs = await prisma.exec_assistants.findMany({ orderBy: { created_at: 'desc' }, take: 20 });
-
-        let allExecs: any[] = [...chatExecs, ...asstExecs];
-        allExecs.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
-        res.json(allExecs.slice(0, 50));
-    } catch (e: any) {
-        res.status(500).json({ error: e.message });
-    }
-});
+router.get('/api/executions', getExecutions);
 // ===================================================================
 
 // Configuración de multer

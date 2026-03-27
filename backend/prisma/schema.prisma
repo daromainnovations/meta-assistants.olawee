@@ -101,3 +101,28 @@ model exec_assistants {
 }
 
 
+// ============================================================
+// 🛡️ EXECUTIONS — Tabla Unificada de Control de Ejecuciones
+// ============================================================
+// Registra todas las ejecuciones del sistema:
+//   category  → 'llm' | 'assistant' | 'meta'
+//   provider  → modelo específico o meta_id del especialista
+//   environment → 'staging' | 'production'
+//   status    → 'SUCCESS' | 'ERROR'
+//   duration_ms → tiempo de respuesta en milisegundos
+//   error     → null si SUCCESS, traza completa si ERROR
+// ============================================================
+model executions {
+  id          String   @id @default(uuid())
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  category    String   // 'llm' | 'assistant' | 'meta'
+  provider    String   // 'openai' | 'gemini' | 'assistant' | 'invoice_checker' | ...
+  environment String   // 'staging' | 'production'
+  status      String   // 'SUCCESS' | 'ERROR'
+  duration_ms Int?     // Tiempo de respuesta en ms
+  input       Json?
+  output      Json?
+  error       Json?    // null si SUCCESS
+
+  @@schema("pruebas_executions")
+}
