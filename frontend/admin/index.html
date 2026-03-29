@@ -4,285 +4,269 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OLAWEE | Execution Control</title>
+    <title>OLAWEE | Execution Control Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         * { font-family: 'Inter', sans-serif; }
         .mono { font-family: 'JetBrains Mono', monospace; }
 
-        body { background: #0a0f1a; }
+        body { background: #070b14; color: #e2e8f0; }
 
-        /* Animación de pulso para el indicador live */
-        @keyframes pulse-dot {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(0.85); }
+        /* Chart container */
+        .chart-container {
+            background: #0d1525;
+            border: 1px solid #1e2d45;
+            border-radius: 12px;
+            padding: 16px;
+            height: 220px;
         }
-        .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
-
-        /* Borde izquierdo de color en las filas */
-        .row-success { border-left: 3px solid #22c55e; }
-        .row-error   { border-left: 3px solid #ef4444; background: rgba(239,68,68,0.04); }
-
-        /* Animación de entrada de filas */
-        @keyframes fadeInRow {
-            from { opacity: 0; transform: translateY(-6px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-        .row-enter { animation: fadeInRow 0.25s ease-out; }
-
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #0d1525; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #2d3f5e; border-radius: 3px; }
 
         /* Stats cards */
         .stat-card {
-            background: linear-gradient(135deg, #111827 0%, #0f172a 100%);
+            background: #0d1525;
             border: 1px solid #1e2d45;
             border-radius: 12px;
-            padding: 20px 24px;
-            position: relative;
-            overflow: hidden;
+            padding: 12px 20px;
+            transition: transform 0.2s;
         }
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 2px;
-        }
-        .stat-card.blue::before  { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
-        .stat-card.green::before { background: linear-gradient(90deg, #22c55e, #4ade80); }
-        .stat-card.red::before   { background: linear-gradient(90deg, #ef4444, #f87171); }
-        .stat-card.purple::before{ background: linear-gradient(90deg, #a855f7, #c084fc); }
+        .stat-card:hover { transform: translateY(-2px); border-color: #3b82f6; }
 
-        /* Badge del provider */
-        .badge-llm       { background: #1e3a5f; color: #60a5fa; }
-        .badge-assistant { background: #2d1b4e; color: #c084fc; }
-        .badge-meta      { background: #1a3a2a; color: #4ade80; }
+        /* Rows */
+        .row-success { border-left: 4px solid #10b981; }
+        .row-error   { border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.03); }
+        .row-selected { background: rgba(59, 130, 246, 0.1) !important; border-left-color: #3b82f6 !important; }
 
-        /* Filter tabs */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0d1525; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e2d45; border-radius: 3px; }
+
+        .filter-tab { transition: all 0.2s; }
         .tab-active { background: #1e40af; color: white; border-color: #3b82f6; }
-        .tab-inactive { background: #111827; color: #6b7280; border-color: #1f2937; }
-        .tab-inactive:hover { background: #1f2937; color: #9ca3af; }
+        .tab-inactive { background: #0d1525; color: #64748b; border-color: #1e2d45; }
+        .tab-inactive:hover { border-color: #334155; color: #94a3b8; }
 
-        /* Modal backdrop */
-        .modal-backdrop { backdrop-filter: blur(8px); background: rgba(0,0,0,0.8); }
+        /* Comparison Mode Overlay */
+        #comparisonBar {
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+            background: #1e40af;
+            border-top: 1px solid #3b82f6;
+        }
 
-        /* Duration bar */
-        .duration-bar {
-            height: 3px;
-            border-radius: 2px;
-            background: #1f2937;
-            overflow: hidden;
-        }
-        .duration-fill {
-            height: 100%;
-            border-radius: 2px;
-            background: linear-gradient(90deg, #3b82f6, #60a5fa);
-        }
+        /* Modal side-by-side */
+        .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #1e2d45; }
+        .comparison-pane { background: #070b14; padding: 16px; overflow-y: auto; max-height: 60vh; }
     </style>
 </head>
 
-<body class="text-gray-100 min-h-screen">
+<body class="min-h-screen pb-24">
 
     <!-- ═══════════════════════════════════════════════════════════ -->
-    <!-- NAVBAR -->
+    <!-- NAVIGATION -->
     <!-- ═══════════════════════════════════════════════════════════ -->
-    <header style="background: #0d1525; border-bottom: 1px solid #1e2d45;">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div style="background: linear-gradient(135deg, #1d4ed8, #7c3aed); border-radius: 8px; padding: 6px 10px; font-size: 18px;">⚡</div>
+    <header class="sticky top-0 z-40" style="background: rgba(13, 21, 37, 0.8); backdrop-filter: blur(12px); border-bottom: 1px solid #1e2d45;">
+        <div class="max-w-7xl mx-auto px-6 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-xl shadow-lg shadow-blue-900/20">⚡</div>
                 <div>
-                    <h1 class="text-lg font-bold text-white tracking-tight">OLAWEE <span class="text-blue-400 font-light">Execution Control</span></h1>
-                    <p class="text-xs text-gray-500 mono" id="envBadge">cargando entorno...</p>
+                    <h1 class="text-lg font-bold tracking-tight">OLAWEE <span class="text-blue-400 font-light">Control Center</span></h1>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <span class="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                        <span class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold" id="envStatus">Staging Active</span>
+                    </div>
                 </div>
             </div>
-            <div class="flex items-center gap-3">
-                <!-- Auto-refresh toggle -->
-                <button id="autoRefreshBtn" onclick="toggleAutoRefresh()"
-                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm border border-gray-700 text-gray-400 hover:border-gray-500 transition-all">
-                    <span class="pulse-dot h-2 w-2 rounded-full bg-gray-500" id="autoRefreshDot"></span>
-                    <span id="autoRefreshLabel">Auto-refresh OFF</span>
-                </button>
-                <button onclick="refreshData()"
-                    class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium text-white transition-all"
-                    style="background: #1d4ed8; border: 1px solid #2563eb;">
-                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    Actualizar
+
+            <div class="flex items-center gap-4">
+                <div class="relative">
+                    <input type="text" id="searchInput" onkeyup="handleSearch(event)"
+                        placeholder="Buscar en logs (session_id, input...)" 
+                        class="bg-[#070b14] border border-[#1e2d45] rounded-lg px-4 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all">
+                    <span class="absolute right-3 top-2.5 text-gray-500">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </span>
+                </div>
+                <button onclick="refreshData()" class="p-2 rounded-lg hover:bg-white/5 transition">
+                    <svg class="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                 </button>
             </div>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-6 py-8">
+    <main class="max-w-7xl mx-auto px-6 py-6">
 
-        <!-- ═══════════════════════════════════════════════════════════ -->
-        <!-- STATS CARDS -->
-        <!-- ═══════════════════════════════════════════════════════════ -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div class="stat-card blue">
-                <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Ejecuciones</p>
-                <p class="text-3xl font-bold text-white" id="statTotal">—</p>
-                <p class="text-xs text-gray-500 mt-1">últimos 7 días</p>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Stats -->
+            <div class="lg:col-span-1 grid grid-cols-2 gap-4">
+                <div class="stat-card">
+                    <p class="text-[10px] uppercase text-gray-500 font-bold mb-1">Volumen Total</p>
+                    <p class="text-2xl font-bold" id="statTotal">—</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-[10px] uppercase text-gray-500 font-bold mb-1">Éxito (%)</p>
+                    <p class="text-2xl font-bold text-emerald-400" id="statSuccessRate">—</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-[10px] uppercase text-gray-500 font-bold mb-1">Errores</p>
+                    <p class="text-2xl font-bold text-red-500" id="statErrors">—</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-[10px] uppercase text-gray-500 font-bold mb-1">Latencia Media</p>
+                    <p class="text-2xl font-bold text-blue-400" id="statLatency">—</p>
+                </div>
             </div>
-            <div class="stat-card green">
-                <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Exitosas</p>
-                <p class="text-3xl font-bold text-green-400" id="statSuccess">—</p>
-                <p class="text-xs text-gray-500 mt-1" id="statSuccessRate">—</p>
-            </div>
-            <div class="stat-card red">
-                <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Con Error</p>
-                <p class="text-3xl font-bold text-red-400" id="statErrors">—</p>
-                <p class="text-xs text-gray-500 mt-1" id="statErrorRate">—</p>
-            </div>
-            <div class="stat-card purple">
-                <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Última Ejecución</p>
-                <p class="text-sm font-semibold text-purple-300 mt-2" id="statLast">—</p>
+
+            <!-- CHARTS AREA -->
+            <div class="lg:col-span-2 grid grid-cols-1 gap-6">
+                <div class="bg-[#0d1525] rounded-xl border border-[#1e2d45] p-6 h-72 relative overflow-hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Tendencia (Últimas 24h)</h3>
+                        <div class="flex gap-4 text-[10px]">
+                            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Éxito</span>
+                            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span> Error</span>
+                        </div>
+                    </div>
+                    <div class="h-48">
+                        <canvas id="trendsChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-[#0d1525] rounded-xl border border-[#1e2d45] p-6 h-72 relative overflow-hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Tendencia Semanal (7 Días)</h3>
+                        <div class="flex gap-4 text-[10px]">
+                            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-400"></span> Éxito</span>
+                            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-400"></span> Error</span>
+                        </div>
+                    </div>
+                    <div class="h-48">
+                        <canvas id="weeklyChart"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
 
         <!-- ═══════════════════════════════════════════════════════════ -->
-        <!-- FILTROS -->
+        <!-- FILTERS & TABS -->
         <!-- ═══════════════════════════════════════════════════════════ -->
-        <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
-            <div class="flex gap-2 flex-wrap">
-                <button onclick="setFilter('all')" id="tab-all"
-                    class="filter-tab px-4 py-2 rounded-lg text-sm font-medium border transition-all tab-active">
-                    🌐 Todas
-                </button>
-                <button onclick="setFilter('llm')" id="tab-llm"
-                    class="filter-tab px-4 py-2 rounded-lg text-sm font-medium border transition-all tab-inactive">
-                    🤖 LLM Chats
-                </button>
-                <button onclick="setFilter('assistant')" id="tab-assistant"
-                    class="filter-tab px-4 py-2 rounded-lg text-sm font-medium border transition-all tab-inactive">
-                    🧠 Assistants
-                </button>
-                <button onclick="setFilter('meta')" id="tab-meta"
-                    class="filter-tab px-4 py-2 rounded-lg text-sm font-medium border transition-all tab-inactive">
-                    ✨ Meta
-                </button>
-                <button onclick="setFilter('error')" id="tab-error"
-                    class="filter-tab px-4 py-2 rounded-lg text-sm font-medium border transition-all tab-inactive">
-                    🔴 Solo Errores
-                </button>
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex gap-2">
+                <button onclick="setFilter('all')" id="tab-all" class="filter-tab px-4 py-2 rounded-lg text-xs font-bold border tab-active">🌐 TODO</button>
+                <button onclick="setFilter('llm')" id="tab-llm" class="filter-tab px-4 py-2 rounded-lg text-xs font-bold border tab-inactive">🤖 CHATS</button>
+                <button onclick="setFilter('assistant')" id="tab-assistant" class="filter-tab px-4 py-2 rounded-lg text-xs font-bold border tab-inactive">🧠 ASISTENTES</button>
+                <button onclick="setFilter('meta')" id="tab-meta" class="filter-tab px-4 py-2 rounded-lg text-xs font-bold border tab-inactive">✨ META</button>
             </div>
-            <p class="text-xs text-gray-500 mono" id="filterInfo">Mostrando todas las ejecuciones</p>
+
+            <div class="flex items-center bg-[#0d1525] p-1 rounded-lg border border-[#1e2d45]">
+                <button onclick="setEnv('all')" id="env-all" class="px-3 py-1.5 rounded-md text-[10px] font-bold transition-all bg-blue-600 text-white">TODOS</button>
+                <button onclick="setEnv('staging')" id="env-staging" class="px-3 py-1.5 rounded-md text-[10px] font-bold transition-all text-gray-500 hover:text-white">STAGING</button>
+                <button onclick="setEnv('production')" id="env-production" class="px-3 py-1.5 rounded-md text-[10px] font-bold transition-all text-gray-500 hover:text-white">PROD</button>
+            </div>
         </div>
 
         <!-- ═══════════════════════════════════════════════════════════ -->
-        <!-- TABLA -->
+        <!-- TABLE -->
         <!-- ═══════════════════════════════════════════════════════════ -->
-        <div class="rounded-xl overflow-hidden" style="border: 1px solid #1e2d45; background: #0d1525;">
-            <div class="overflow-x-auto">
-                <table class="min-w-full">
-                    <thead style="background: #111827; border-bottom: 1px solid #1e2d45;">
-                        <tr>
-                            <th class="px-5 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider w-24">Estado</th>
-                            <th class="px-5 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Flujo / Proveedor</th>
-                            <th class="px-5 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Entorno</th>
-                            <th class="px-5 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Duración</th>
-                            <th class="px-5 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Fecha</th>
-                            <th class="px-5 py-3.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody id="executionsTable" class="divide-y" style="border-color: #1a2540;">
-                        <tr>
-                            <td colspan="6" class="px-5 py-12 text-center text-gray-500">
-                                <div class="flex flex-col items-center gap-2">
-                                    <span class="text-2xl">⚡</span>
-                                    <span class="text-sm">Cargando ejecuciones...</span>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <div class="rounded-xl border border-[#1e2d45] overflow-hidden bg-[#0d1525]">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-[#111827] border-bottom border-[#1e2d45] text-gray-500">
+                    <tr>
+                        <th class="px-6 py-4 text-[10px] font-bold uppercase tracking-wider w-12"></th>
+                        <th class="px-6 py-4 text-[10px] font-bold uppercase tracking-wider">Estado</th>
+                        <th class="px-6 py-4 text-[10px] font-bold uppercase tracking-wider">Proveedor / Modelo</th>
+                        <th class="px-6 py-4 text-[10px] font-bold uppercase tracking-wider">Entorno</th>
+                        <th class="px-6 py-4 text-[10px] font-bold uppercase tracking-wider">Latencia</th>
+                        <th class="px-6 py-4 text-[10px] font-bold uppercase tracking-wider">Fecha</th>
+                        <th class="px-6 py-4 text-right text-[10px] font-bold uppercase tracking-wider">Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="executionsTable" class="divide-y divide-[#1e2d45]">
+                    <!-- JS Injection -->
+                </tbody>
+            </table>
         </div>
 
     </main>
 
     <!-- ═══════════════════════════════════════════════════════════ -->
-    <!-- MODAL DE INSPECCIÓN -->
+    <!-- COMPARISON BAR (FLOAT) -->
     <!-- ═══════════════════════════════════════════════════════════ -->
-    <div id="jsonModal" class="fixed inset-0 modal-backdrop hidden z-50 flex items-center justify-center p-4">
-        <div class="w-full max-w-5xl rounded-2xl flex flex-col max-h-[90vh]"
-            style="background: #0d1525; border: 1px solid #1e2d45;">
+    <div id="comparisonBar" class="fixed bottom-0 left-0 right-0 h-16 flex justify-between items-center px-8 translate-y-full transition-transform z-50">
+        <div class="flex items-center gap-4">
+            <span class="text-sm font-bold"><span id="selectedCount">0</span> Ejecuciones seleccionadas</span>
+            <p class="text-xs text-blue-200">Selecciona dos para comparar entradas y salidas lado a lado.</p>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="clearSelection()" class="text-xs font-bold hover:underline">Cancelar</button>
+            <button id="compareBtn" disabled onclick="openComparison()" class="bg-white text-blue-600 px-6 py-2 rounded-lg text-sm font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">Comparar Ahora</button>
+        </div>
+    </div>
 
-            <!-- Header Modal -->
-            <div class="px-6 py-4 flex justify-between items-center" style="border-bottom: 1px solid #1e2d45;">
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- MODAL: INSPECTION -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div id="modalBackdrop" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-[60] flex items-center justify-center p-6">
+        <div class="bg-[#0d1525] border border-[#1e2d45] rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl">
+            <div class="px-8 py-5 border-b border-[#1e2d45] flex justify-between items-center">
                 <div class="flex items-center gap-3">
-                    <span id="modalIcon" class="text-2xl">📝</span>
+                    <span id="modalStatusIcon" class="text-2xl"></span>
                     <div>
-                        <h3 class="text-base font-bold text-white">Detalles de Ejecución</h3>
-                        <p class="text-xs mono text-gray-500" id="modalMeta"></p>
+                        <h3 class="font-bold text-lg" id="modalTitle">Detalle de Ejecución</h3>
+                        <p class="text-xs mono text-gray-500" id="modalId"></p>
                     </div>
                 </div>
-                <div class="flex items-center gap-3">
-                    <span id="modalEnvBadge" class="text-xs px-2 py-1 rounded mono"></span>
-                    <span id="modalDuration" class="text-xs px-2 py-1 rounded mono text-blue-400" style="background: #1e3a5f;"></span>
-                    <button onclick="closeModal()" class="text-gray-500 hover:text-white transition p-1">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                <div class="flex items-center gap-4">
+                    <button id="retryBtn" onclick="executeRetry()" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        RE-EJECUTAR (RETRY)
                     </button>
+                    <button onclick="closeModal()" class="text-gray-500 hover:text-white"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
                 </div>
             </div>
-
-            <!-- Error banner (solo si ERROR) -->
-            <div id="errorBanner" class="hidden px-6 py-3 flex items-start gap-3" style="background: rgba(239,68,68,0.1); border-bottom: 1px solid rgba(239,68,68,0.2);">
-                <span class="text-red-400 text-lg mt-0.5">⚠️</span>
-                <div>
-                    <p class="text-sm font-semibold text-red-400">Error detectado</p>
-                    <p class="text-xs text-red-300 mono mt-0.5" id="errorMessage"></p>
-                </div>
-            </div>
-
-            <!-- Body Modal -->
-            <div class="p-6 overflow-y-auto custom-scrollbar flex-1" style="background: #080d18;">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                        <h4 class="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14"/></svg>
-                            Entrada (Input)
+            
+            <div class="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-3">
+                        <h4 class="text-[10px] font-bold uppercase text-blue-400 tracking-widest flex items-center gap-2">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14"/></svg>
+                            Input Payload
                         </h4>
-                        <div class="rounded-lg overflow-hidden" style="border: 1px solid #1e2d45;">
-                            <pre class="custom-scrollbar text-xs p-3 overflow-auto max-h-64" style="background: #060b14;"><code id="inputJson" class="language-json"></code></pre>
-                        </div>
+                        <pre class="bg-[#070b14] p-4 rounded-xl border border-[#1e2d45] overflow-auto max-h-80 custom-scrollbar text-xs"><code id="modalInput" class="language-json"></code></pre>
                     </div>
-                    <div>
-                        <h4 class="text-xs font-semibold text-green-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7"/></svg>
-                            Salida (Output)
+                    <div class="space-y-3">
+                        <h4 class="text-[10px] font-bold uppercase text-emerald-400 tracking-widest flex items-center gap-2">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7"/></svg>
+                            Output Response
                         </h4>
-                        <div class="rounded-lg overflow-hidden" style="border: 1px solid #1e2d45;">
-                            <pre class="custom-scrollbar text-xs p-3 overflow-auto max-h-64" style="background: #060b14;"><code id="outputJson" class="language-json"></code></pre>
-                        </div>
+                        <pre class="bg-[#070b14] p-4 rounded-xl border border-[#1e2d45] overflow-auto max-h-80 custom-scrollbar text-xs"><code id="modalOutput" class="language-json"></code></pre>
                     </div>
-                    <!-- Error trace (solo si ERROR) -->
-                    <div id="errorSection" class="hidden md:col-span-2">
-                        <h4 class="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                            🔥 Error Trace
-                        </h4>
-                        <div class="rounded-lg overflow-hidden" style="border: 1px solid rgba(239,68,68,0.3);">
-                            <pre class="custom-scrollbar text-xs p-3 overflow-auto max-h-48" style="background: rgba(239,68,68,0.05);"><code id="errorJson" class="language-json"></code></pre>
-                        </div>
+                    <div id="modalErrorSection" class="hidden md:col-span-2 space-y-3">
+                         <h4 class="text-[10px] font-bold uppercase text-red-400 tracking-widest">⚠️ Error Trace</h4>
+                         <pre class="bg-red-900/10 p-4 rounded-xl border border-red-500/20 overflow-auto max-h-48 custom-scrollbar text-xs"><code id="modalError" class="language-json text-red-300"></code></pre>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- Footer Modal -->
-            <div class="px-6 py-3 flex justify-end" style="border-top: 1px solid #1e2d45;">
-                <button onclick="closeModal()"
-                    class="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white transition"
-                    style="background: #1f2937; border: 1px solid #374151;">
-                    Cerrar
-                </button>
-            </div>
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- MODAL: COMPARISON SIDE-BY-SIDE -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div id="comparisonModal" class="fixed inset-0 bg-black/90 backdrop-blur-xl hidden z-[70] flex flex-col">
+        <div class="px-8 py-4 border-b border-[#1e2d45] flex justify-between items-center bg-[#0d1525]">
+            <h3 class="font-bold text-lg">Comparador Side-by-Side</h3>
+            <button onclick="closeComparison()" class="bg-white/10 px-4 py-2 rounded-lg text-sm font-bold">Cerrar Comparador</button>
+        </div>
+        <div class="comparison-grid flex-1">
+            <div id="paneA" class="comparison-pane border-r border-[#1e2d45]"></div>
+            <div id="paneB" class="comparison-pane"></div>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
-    <script src="app.js?v=10"></script>
+    <script src="app.js?v=20"></script>
 </body>
 </html>

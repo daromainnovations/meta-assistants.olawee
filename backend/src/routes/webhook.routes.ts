@@ -3,7 +3,7 @@ import multer from 'multer';
 import { webhookService } from '../services/webhook.service';
 import { apiKeyMiddleware } from '../middleware/auth.middleware';
 import { qaDocInjector } from '../no_PR/qa-doc-injector.middleware'; // 🚫 NO_PR — Eliminar en producción
-import { getExecutions } from '../executions/executions.controller';
+import { getExecutions, retryExecution } from '../executions/executions.controller';
 
 import { PrismaClient } from '@prisma/client';
 
@@ -25,8 +25,9 @@ if (isStaging) {
 // Inyector condicional: Solo activo en Staging
 const docInjector = isStaging ? qaDocInjector : () => (req: Request, res: Response, next: any) => next();
 
-// === DASHBOARD ROUTE (Libre de API Key para Visualizar el Panel) ===
+// === DASHBOARD ROUTES (Libre de API Key para Visualizar el Panel) ===
 router.get('/api/executions', getExecutions);
+router.post('/api/executions/retry/:id', retryExecution);
 // ===================================================================
 
 // Configuración de multer
