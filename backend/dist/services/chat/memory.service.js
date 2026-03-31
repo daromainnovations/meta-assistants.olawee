@@ -12,7 +12,7 @@ class MemoryService {
         const db = (0, prisma_service_1.getPrisma)();
         console.log(`[MemoryService] Loading chat history for: ${sessionId}`);
         try {
-            const mensajes = await db.prueba_mensajesllms.findMany({
+            const mensajes = await db.mensajesllms.findMany({
                 where: { session_id: sessionId },
                 orderBy: { id: 'asc' }
             });
@@ -46,7 +46,7 @@ class MemoryService {
     async getDocumentContext(sessionId) {
         const db = (0, prisma_service_1.getPrisma)();
         try {
-            const doc = await db.prueba_chatsllms.findFirst({
+            const doc = await db.chatsllms.findFirst({
                 where: { session_id: sessionId }
             });
             return doc?.systemprompt_doc || '';
@@ -67,7 +67,7 @@ class MemoryService {
                 content: content,
                 timestamp: new Date().toISOString()
             };
-            await db.prueba_mensajesllms.create({
+            await db.mensajesllms.create({
                 data: {
                     session_id: sessionId,
                     message: messageJson

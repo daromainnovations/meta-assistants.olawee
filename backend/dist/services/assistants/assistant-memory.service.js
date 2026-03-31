@@ -13,7 +13,7 @@ class AssistantMemoryService {
         const db = (0, prisma_service_1.getPrisma)();
         console.log(`[AssistantMemory] Loading chat history for session: ${sessionId}`);
         try {
-            const mensajes = await db.prueba_mensajesassistants.findMany({
+            const mensajes = await db.mensajes_agentes.findMany({
                 where: { session_id: sessionId },
                 orderBy: { id: 'asc' }
             });
@@ -41,12 +41,12 @@ class AssistantMemoryService {
         }
     }
     /**
-     * Lee el systemprompt_doc guardado para esta sesión desde prueba_chatsassistants
+     * Lee el systemprompt_doc guardado para esta sesión desde chats_agentes
      */
     async getDocumentContext(sessionId) {
         const db = (0, prisma_service_1.getPrisma)();
         try {
-            const row = await db.prueba_chatsassistants.findFirst({ where: { session_id: sessionId } });
+            const row = await db.chats_agentes.findFirst({ where: { session_id: sessionId } });
             return row?.systemprompt_doc || '';
         }
         catch (error) {
@@ -65,7 +65,7 @@ class AssistantMemoryService {
                 content: content,
                 timestamp: new Date().toISOString()
             };
-            await db.prueba_mensajesassistants.create({
+            await db.mensajes_agentes.create({
                 data: {
                     session_id: sessionId,
                     message: messageJson

@@ -7,10 +7,9 @@ const prisma_service_1 = require("../services/shared/prisma.service");
  * Aquí es donde se lee el systemprompt_doc almacenado.
  */
 const TABLE_MAP = {
-    llm: 'prueba_chatsllms',
-    assistant: 'prueba_chatsassistants',
-    pymes: 'prueba_chatspymes',
-    beta: 'prueba_chatsbeta',
+    llm: 'chatsllms',
+    assistant: 'chats_agentes',
+    meta: 'chatsmeta',
 };
 /**
  * Lee el systemprompt_doc de la tabla de chats para la sesión dada.
@@ -23,28 +22,21 @@ async function getStoredDocContext(providerType, sessionId) {
         let record = null;
         switch (providerType) {
             case 'llm':
-                record = await db.prueba_chatsllms.findFirst({
+                record = await db.chatsllms.findFirst({
                     where: { session_id: sessionId },
                     select: { systemprompt_doc: true },
                     orderBy: { id: 'desc' }
                 });
                 break;
             case 'assistant':
-                record = await db.prueba_chatsassistants.findFirst({
+                record = await db.chats_agentes.findFirst({
                     where: { session_id: sessionId },
                     select: { systemprompt_doc: true },
                     orderBy: { id: 'desc' }
                 });
                 break;
-            case 'pymes':
-                record = await db.prueba_chatspymes.findFirst({
-                    where: { session_id: sessionId },
-                    select: { systemprompt_doc: true },
-                    orderBy: { id: 'desc' }
-                });
-                break;
-            case 'beta':
-                record = await db.prueba_chatsbeta.findFirst({
+            case 'meta':
+                record = await db.chatsmeta.findFirst({
                     where: { session_id: sessionId },
                     select: { systemprompt_doc: true },
                     orderBy: { id: 'desc' }
@@ -67,7 +59,7 @@ async function getStoredDocContext(providerType, sessionId) {
  * Uso en webhook.routes.ts:
  *   router.post('/gemini-chat', apiKeyMiddleware, handleUpload, qaDocInjector('llm'), handler)
  *
- * @param providerType - El tipo de proveedor ('llm' | 'assistant' | 'pymes' | 'beta')
+ * @param providerType - El tipo de proveedor ('llm' | 'assistant' | 'meta')
  */
 function qaDocInjector(providerType) {
     return async (req, res, next) => {
@@ -76,10 +68,10 @@ function qaDocInjector(providerType) {
             // Sin session_id no hay nada que buscar
             return next();
         }
-        // Los especialistas Beta (invoice_checker, etc.) gestionan sus propios archivos
+        // Los especialistas Meta (invoice_checker, etc.) gestionan sus propios archivos
         // y no usan systemprompt_doc. Los saltamos para no interferir.
-        if (providerType === 'beta' && req.body?.beta_id) {
-            console.log(`[QA-DocInjector] Skipping Beta Specialist "${req.body.beta_id}" — no systemprompt_doc needed.`);
+        if (providerType === 'meta' && req.body?.meta_id) {
+            console.log(`[QA-DocInjector] Skipping Meta Specialist "${req.body.meta_id}" — no systemprompt_doc needed.`);
             return next();
         }
         console.log(`[QA-DocInjector] Checking stored doc context for session "${sessionId}" [${providerType}]...`);

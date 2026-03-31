@@ -6,7 +6,7 @@ class DocumentService {
     /**
      * Procesa un documento recibido:
      * 1. Identifica el tipo de archivo y lo transcribe.
-     * 2. Gestiona el guardado en la tabla 'prueba_chatsllms'.
+     * 2. Gestiona el guardado en la tabla 'chatsllms'.
      *    - Busca por 'session_id'.
      *    - Si 'systemprompt_doc' está vacío, inserta la transcripción.
      *    - Si ya tiene contenido, concatena el antiguo con el nuevo.

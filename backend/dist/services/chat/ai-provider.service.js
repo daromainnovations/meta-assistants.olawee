@@ -32,10 +32,19 @@ class AiProviderService {
         }
         // Traductor Proxy: Nombres N8N o visuales -> Nombres de API Reales
         let mappedModelName = modelName;
-        if (modelName === 'gemini-3-pro')
+        if (modelName === 'gemini-3.0-pro' || modelName === 'gemini-3-pro')
             mappedModelName = 'gemini-3-pro-preview';
-        if (modelName === 'gemini-3-flash')
+        if (modelName === 'gemini-3.0-flash' || modelName === 'gemini-3-flash')
             mappedModelName = 'gemini-3-flash-preview';
+        // Mapeo de Claude 4.5 / 4.6 (Visuales hacia los reales más recientes de Anthropic)
+        if (modelName === 'claude-4-5-sonnet-latest')
+            mappedModelName = 'claude-3-5-sonnet-20241022'; // 100% estable comprobado
+        if (modelName === 'claude-4-5-haiku-latest')
+            mappedModelName = 'claude-haiku-4-5'; // Versión activa 2026
+        if (modelName === 'claude-4-5-opus-latest')
+            mappedModelName = 'claude-opus-4-5-20251101'; // Versión activa 2026
+        if (modelName === 'claude-4-6-opus-latest')
+            mappedModelName = 'claude-opus-4-6'; // Versión activa 2026
         console.log(`[ModelSelector] Routing model '${modelName}' (Mapped: '${mappedModelName}') to provider -> '${actualProvider}'`);
         switch (actualProvider) {
             case 'gemini':
@@ -51,10 +60,11 @@ class AiProviderService {
                 if (!process.env.OPENAI_API_KEY) {
                     throw new Error('OPENAI_API_KEY is not configured in .env. Por favor añádela para usar modelos GPT.');
                 }
+                const isOpenAIReasoning = modelName.includes('gpt-5') || modelName.includes('o1') || modelName.includes('o3');
                 return new openai_1.ChatOpenAI({
                     apiKey: process.env.OPENAI_API_KEY,
-                    modelName: modelName,
-                    temperature: 0.7,
+                    modelName: mappedModelName,
+                    temperature: isOpenAIReasoning ? 1 : 0.7,
                 });
             case 'anthropic':
                 if (!process.env.ANTHROPIC_API_KEY) {
@@ -62,7 +72,7 @@ class AiProviderService {
                 }
                 return new anthropic_1.ChatAnthropic({
                     apiKey: process.env.ANTHROPIC_API_KEY,
-                    modelName: modelName,
+                    modelName: mappedModelName,
                     temperature: 0.7,
                 });
             case 'mistral':
@@ -78,10 +88,11 @@ class AiProviderService {
                 if (!process.env.DEEPSEEK_API_KEY) {
                     throw new Error('DEEPSEEK_API_KEY is not configured in .env. Añádela para usar modelos DeepSeek.');
                 }
+                const isDeepSeekReasoning = modelName.includes('reasoner');
                 return new deepseek_1.ChatDeepSeek({
                     apiKey: process.env.DEEPSEEK_API_KEY,
                     model: modelName, // ChatDeepSeek usually uses 'model' instead of 'modelName'
-                    temperature: 0.7,
+                    temperature: isDeepSeekReasoning ? undefined : 0.7,
                 });
             default:
                 throw new Error(`Cannot resolve provider for model: ${modelName}. Add routing logic in ai-provider.service.`);

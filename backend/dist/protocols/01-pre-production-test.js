@@ -53,7 +53,7 @@ async function checkDirectories() {
         'frontend/chat',
         'frontend/assistants',
         'frontend/pymes-assistant',
-        'frontend/beta-assistants'
+        'frontend/meta-assistants'
     ];
     for (const dir of requiredDirs) {
         const fullPath = path_1.default.join(process.cwd(), dir);
