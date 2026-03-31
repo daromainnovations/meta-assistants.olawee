@@ -35,10 +35,15 @@ ${err?.stack || 'No Stack Trace disponible'}
 ===================================================================
 `;
 
-            // Limitar tamaño del log a 5MB
+            // Rotación automática semanal (7 días) o límite de 5MB
             if (fs.existsSync(logPath)) {
                 const stats = fs.statSync(logPath);
-                if (stats.size > 5 * 1024 * 1024) {
+                const now = new Date();
+                const diffTime = Math.abs(now.getTime() - stats.mtime.getTime());
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays >= 7 || stats.size > 5 * 1024 * 1024) {
+                    console.log(`[Init] 🧹 Rotando log de errores (${diffDays} días, ${stats.size} bytes).`);
                     fs.unlinkSync(logPath);
                 }
             }

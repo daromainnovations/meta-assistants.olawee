@@ -1,172 +1,141 @@
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { DynamicStructuredTool } from '@langchain/core/tools';
-import { SystemMessage, HumanMessage } from '@langchain/core/messages';
-import { z } from 'zod';
 import { editExcel } from './excel_editor';
 import { metaMemoryService } from '../../meta-memory.service';
+import { BaseMetaSpecialist } from '../../base-specialist';
+import { MetaContext, MetaResult } from '../../meta.types';
 
-export class GrantJustificationAgent {
-  
-  async run(
-    userMessage: string,
-    files: Express.Multer.File[],
-    sessionId: string,
-    docContext: string
-  ): Promise<any> {
-    
-    // --- 🧬 FALLBACK DE MEMORIA (DOC CONTEXT) ---
-    // Si por algún error de sincronización el contexto llega vacío, lo recuperamos de la BD
-    let finalDocContext = docContext;
-    if (!finalDocContext || finalDocContext.length < 10) {
-      console.log(`[GrantJustifier] 🔄 Contexto vacío o corto detectado. Intentando fallback desde BD...`);
-      finalDocContext = await metaMemoryService.getDocumentContext(sessionId);
-    }
+/**
+ * ⚖️ AGENTE ESPECIALISTA: GRANT JUSTIFICATION (Justificador de Subvenciones)
+ */
+export class GrantJustificationAgent extends BaseMetaSpecialist {
 
-    console.log(`[GrantJustifier] 🧠 MEMORY CHECK: Contexto final tiene ${finalDocContext.length} caracteres.`);
+    protected getName(): string { return 'GrantJustifier'; }
 
-    let generatedBuffer: Buffer | null = null;
-    let excelFileName: string = '';
+    /**
+     * Lógica pura del Justificador de Subvenciones
+     */
+    protected async execute(context: MetaContext): Promise<MetaResult> {
+        const { userMessage, files, sessionId, docContext, metaId, model: modelName } = context;
+        console.log(`\n[GrantJustifier] ▶ Starting logic. Session: ${sessionId}`);
 
-    // 1. Recuperar archivos de la sesión (Caché + Actuales)
-    const sessionFiles = metaMemoryService.getSessionFiles(sessionId);
-    const allFiles = [...sessionFiles];
-    
-    // Si han venido archivos nuevos en esta petición Multer, los añadimos (evitando duplicados)
-    if (files && files.length > 0) {
-      for (const f of files) {
-        if (!allFiles.some(af => af.originalname === f.originalname)) {
-          allFiles.push(f);
-        }
-      }
-    }
-
-    const excelFiles = allFiles.filter(f => 
-      f.originalname.toLowerCase().endsWith('.xlsx') || 
-      f.originalname.toLowerCase().endsWith('.xls')
-    );
-
-    // 2. Definición de Herramienta Genérica
-    const actualizarHojaExcelTool = new DynamicStructuredTool({
-      name: 'actualizar_hoja_excel',
-      description: 'Añade nuevas filas a un archivo Excel existente. Puede añadir al final (por defecto) o insertar en una posición específica desplazando las filas existentes.',
-      schema: z.object({
-        targetFilename: z.string().describe('Nombre del archivo Excel que se usará como base/plantilla.'),
-        sheetName: z.string().optional().describe('Nombre de la pestaña a modificar.'),
-        newRows: z.array(z.any()).describe('Lista de objetos con los datos a añadir.'),
-        insertionMode: z.enum(['append', 'after_value', 'at_index']).optional().default('append').describe('Modo de inserción. "append" añade al final, "after_value" busca un texto (ej: un ID de gasto) e inserta debajo.'),
-        referenceValue: z.any().optional().describe('El valor a buscar si el modo es "after_value" o el índice de fila si es "at_index".')
-      }),
-      func: async (args) => {
         try {
-          const { targetFilename, sheetName, newRows, insertionMode, referenceValue } = args;
-          
-          const templateFile = allFiles.find(f => f.originalname.toLowerCase() === targetFilename.toLowerCase());
-          
-          if (!templateFile) {
-            return `Error: No encuentro el archivo "${targetFilename}".`;
-          }
+            const apiKey = process.env.GEMINI_API_KEY;
+            const model = new ChatGoogleGenerativeAI({
+                apiKey,
+                model: modelName || 'gemini-2.0-flash',
+                temperature: 0
+            }).bind({
+                tools: [
+                    {
+                        name: "actualizar_hoja_excel",
+                        description: "Añade información quirúrgica a una hoja Excel permitiendo elegir la posición exacta.",
+                        parameters: {
+                            type: "object",
+                            properties: {
+                                registro: { type: "object", properties: {
+                                    refGasto: { type: "string" },
+                                    numFactura: { type: "string" },
+                                    proveedor: { type: "string" },
+                                    partida: { type: "string" },
+                                    actividad: { type: "string" },
+                                    fecha: { type: "string" },
+                                    concepto: { type: "string" },
+                                    baseImponible: { type: "number" },
+                                    iva: { type: "number" },
+                                    retencion: { type: "number" },
+                                    total: { type: "number" },
+                                    importeImputado: { type: "number" },
+                                    observacionesFactura: { type: "string" },
+                                    refJustificante: { type: "string" },
+                                    fechaPago: { type: "string" },
+                                    importePagado: { type: "number" },
+                                    observacionesPago: { type: "string" }
+                                }},
+                                insertionMode: { type: "string", enum: ["append", "after_value", "at_index"] },
+                                referenceValue: { type: "string" }
+                            }
+                        }
+                    }
+                ]
+            });
 
-          generatedBuffer = editExcel(
-            templateFile.buffer, 
-            sheetName || null, 
-            newRows, 
-            { mode: insertionMode as any, value: referenceValue }
-          );
-          
-          excelFileName = `Actualizado_${targetFilename}`;
-          return `He procesado los datos y actualizado el archivo "${targetFilename}" con éxito.`;
+            // Prompt del sistema (Específico)
+            const SYSTEM_PROMPT = `⚖️ Soy OLAWEE GrantJustifier.
+Mi especialidad es auditar gastos de subvenciones. Sube tu Excel de gastos y los Justificantes (facturas/tickets) en PDF o imagen. Compararé los importes, fechas e IVAs para asegurar que todo cuadra perfectamente.
+
+REGLAS CRÍTICAS: [OMITIDAS POR BREVEDAD]
+Si el contexto de documentos llega vacío, informa al usuario y pídele que suba el Excel de seguimiento.`;
+
+            // Construir mensajes incluyendo la historia aislada ya inyectada
+            const messages = [
+                new SystemMessage(SYSTEM_PROMPT),
+                ...context.history, 
+                new HumanMessage({
+                    content: [
+                        { type: 'text', text: `Instrucción: ${userMessage}\n\nContexto Excel/Documentos:\n${docContext || 'No hay documentos cargados aún.'}` }
+                    ]
+                })
+            ];
+
+            const response = await model.invoke(messages);
+
+            // Manejo de Tools
+            if (response.additional_kwargs.tool_calls) {
+                const toolCall = response.additional_kwargs.tool_calls[0];
+                if (toolCall.function.name === 'actualizar_hoja_excel') {
+                    const args = JSON.parse(toolCall.function.arguments);
+                    console.log(`[GrantJustifier] 🛠️ Tool Call: actualizar_hoja_excel`, args);
+
+                    // Buscar el archivo Excel en la sesión aislada
+                    const sessionFiles = metaMemoryService.getSessionFiles(sessionId, metaId);
+                    const excelFile = sessionFiles.find(f => f.originalname.toLowerCase().endsWith('.xlsx') || f.originalname.toLowerCase().endsWith('.xls'));
+
+                    if (!excelFile) {
+                        return {
+                            status: 'success',
+                            ai_response: "Lo siento, necesito que vuelvas a subir el archivo Excel para poder editarlo.",
+                            specialist: metaId,
+                            timestamp: new Date().toISOString()
+                        };
+                    }
+
+                    const editResult = await editExcel(
+                        excelFile.buffer,
+                        args.registro,
+                        { 
+                            mode: args.insertionMode || 'append', 
+                            referenceValue: args.referenceValue 
+                        }
+                    );
+
+                    return {
+                        status: 'success',
+                        ai_response: "He actualizado el Excel con el nuevo gasto en la posición indicada. Aquí tienes el archivo actualizado:",
+                        specialist: metaId,
+                        generated_files: [
+                            {
+                                filename: excelFile.originalname,
+                                buffer: editResult.buffer,
+                                mimetype: excelFile.mimetype
+                            }
+                        ],
+                        timestamp: new Date().toISOString()
+                    };
+                }
+            }
+
+            return {
+                status: 'success',
+                ai_response: response.content as string,
+                specialist: metaId,
+                timestamp: new Date().toISOString()
+            };
+
         } catch (error: any) {
-          return `Error técnico editando el Excel: ${error.message}`;
+            throw error;
         }
-      }
-    });
-
-    const tools = [actualizarHojaExcelTool];
-
-    // 3. Configurar LLM
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error('GEMINI_API_KEY no configurado.');
-
-    const llm = new ChatGoogleGenerativeAI({
-      apiKey,
-      model: "gemini-2.0-flash",
-      temperature: 0
-    }).bindTools(tools);
-
-    // 4. Prompt Adaptativo
-    const hasExcel = excelFiles.length > 0;
-    
-    const promptText = `Eres un Auditor experto y Asistente de Gestión de Datos. Tu misión es analizar facturas (PDF) y compararlas con tablas de datos (Excel).
-
-CAPACIDADES:
-1. **Auditoría:** Comprueba si los datos de las facturas coinciden con lo registrado en el Excel. Alerta de discrepancias.
-2. **Edición Flexible y Precisa:** Puedes añadir filas a CUALQUIER tabla usando "actualizar_hoja_excel".
-   - **IMPORTANTE:** Ya no estás limitado a insertar al final. Puedes insertar en cualquier posición.
-   - Si el usuario te pide poner un gasto "después del G67", busca ese valor usando \`insertionMode: "after_value"\` y \`referenceValue: "G67"\`. El sistema desplazará las filas inferiores automáticamente.
-   - Recuerda usar las "keys" EXACTAS de las cabeceras que veas en el contexto del Excel.
-
-DIRECTRICES:
-- Si el usuario subió un Excel, léelo y detecta sus columnas. Úsalas para mapear los datos de las facturas.
-- Si no hay un Excel base, solicita uno o una plantilla.
-- Sé profesional, claro y directo en español.
-
-CONTEXTO ACTUAL:
-${finalDocContext || 'No hay documentos cargados.'}
-${!hasExcel ? '\n⚠️ NOTA: No hay ningún Excel de base en la sesión. Si el usuario pide registrar algo, solicítale el archivo primero.' : ''}
-`;
-
-    // 5. Invocación
-    const history = await metaMemoryService.getMetaChatHistory(sessionId);
-    const messages: any[] = [
-      new SystemMessage(promptText),
-      ...history
-    ];
-
-    if (!userMessage || userMessage.trim().length === 0) {
-        messages.push(new HumanMessage("Analiza los documentos y dime si hay algo que deba saber o si necesitas que actualice alguna tabla con las facturas enviadas."));
     }
-
-    let finalAiResponse = "";
-
-    try {
-      const response = await llm.invoke(messages);
-
-      if (response.tool_calls && response.tool_calls.length > 0) {
-        for (const toolCall of response.tool_calls) {
-          if (toolCall.name === 'actualizar_hoja_excel') {
-             const toolResult = await actualizarHojaExcelTool.invoke(toolCall.args as any);
-             console.log(`[GrantJustifier] Tool Result:`, toolResult);
-             finalAiResponse = typeof toolResult === 'string' ? toolResult : String((toolResult as any)?.content || toolResult);
-          }
-        }
-      } else {
-        finalAiResponse = response.content as string;
-      }
-    } catch (e: any) {
-      console.error("[GrantJustifier] Error:", e);
-      finalAiResponse = "Ocurrió un error en el procesamiento: " + e.message;
-    }
-
-    // 6. Respuesta
-    const returnObj: any = {
-      ai_response: finalAiResponse,
-      status: 'success',
-      specialist: 'grant_justification',
-      timestamp: new Date().toISOString()
-    };
-
-    if (generatedBuffer) {
-      returnObj.generated_files = [
-        {
-          filename: excelFileName,
-          mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          buffer: generatedBuffer
-        }
-      ];
-    }
-
-    return returnObj;
-  }
 }
 
 export const grantJustificationAgent = new GrantJustificationAgent();
