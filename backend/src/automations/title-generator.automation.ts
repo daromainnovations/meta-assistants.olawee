@@ -57,13 +57,19 @@ export class TitleGeneratorAutomation {
 
             console.log(`[TitleGeneratorJob] ✨ Auto-title: "${newTitle}" [${provider}]`);
 
+            // RE-EVALUAMOS el estado en BBDD después de la espera del LLM
+            // para evitar duplicar entradas por concurrencia (ej. webhook guardando el Document Context a la vez)
+            const latestChatRow = await dbTable.findFirst({
+                where: { session_id: sessionId }
+            });
+
             // 3. Crear o actualizar el registro de chat en la tabla correcta
-            if (chatRow) {
+            if (latestChatRow) {
                 const updateData: any = { titulo: newTitle, updated_at: new Date() };
                 if (provider === 'assistant' && idAssistant) updateData.id_assistant = idAssistant;
 
                 if (provider === 'meta-assistant' && idAssistant) updateData.meta_id = idAssistant;
-                await dbTable.update({ where: { id: chatRow.id }, data: updateData });
+                await dbTable.update({ where: { id: latestChatRow.id }, data: updateData });
             } else {
                 const createData: any = {
                     session_id: sessionId,

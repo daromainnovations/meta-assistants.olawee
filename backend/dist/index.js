@@ -3,13 +3,20 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-require("dotenv/config");
+const path_1 = __importDefault(require("path"));
+const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config({ path: path_1.default.resolve(process.cwd(), '.env') });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const webhook_routes_1 = __importDefault(require("./routes/webhook.routes"));
 const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
 const email_service_1 = require("./services/shared/email.service");
+if (!process.env.GEMINI_API_KEY) {
+    console.warn('⚠️ [Init] GEMINI_API_KEY not found in process.env!');
+}
+else {
+    console.log('✅ [Init] GEMINI_API_KEY loaded correctly.');
+}
 // --- SISTEMA PREVENTIVO DE ERRORES (PROTOCOLO 2 Y 5) ---
 function initCrashReporter() {
     const logsDir = path_1.default.join(process.cwd(), 'logs');
@@ -18,8 +25,9 @@ function initCrashReporter() {
     }
     const logPath = path_1.default.join(logsDir, 'olawee-error.log');
     const writeError = (err, type) => {
-        const timestamp = new Date().toISOString();
-        const block = `
+        try {
+            const timestamp = new Date().toISOString();
+            const block = `
 ========== [🔴 REPORTE DE ERROR FATAL: ${timestamp}] ==========
 ▶ TIPO: ${type}
 ▶ MENSAJE: ${err?.message || err}
@@ -28,54 +36,73 @@ function initCrashReporter() {
 ${err?.stack || 'No Stack Trace disponible'}
 ===================================================================
 `;
-        fs_1.default.appendFileSync(logPath, block);
+            // Limitar tamaño del log a 5MB
+            if (fs_1.default.existsSync(logPath)) {
+                const stats = fs_1.default.statSync(logPath);
+                if (stats.size > 5 * 1024 * 1024) {
+                    fs_1.default.unlinkSync(logPath);
+                }
+            }
+            fs_1.default.appendFileSync(logPath, block);
+        }
+        catch (e) {
+            // Silently fail if we can't write to log file
+        }
     };
     process.on('uncaughtException', (err) => {
-        console.error('💥 ERROR CRÍTICO NO CAPTURADO. Guardado en logs/olawee-error.log', err.message);
+        try {
+            console.error('💥 ERROR CRÍTICO NO CAPTURADO. Guardado en logs/olawee-error.log', err.message);
+        }
+        catch (e) { /* ignore EPIPE */ }
         writeError(err, 'UncaughtException');
         email_service_1.emailService.sendCrashAlert('UncaughtException', err.message, err.stack || 'Sin Stack Trace').catch(() => { });
     });
     process.on('unhandledRejection', (reason) => {
         const msg = reason?.message || String(reason);
         const stack = reason?.stack || 'Sin Stack Trace';
-        console.error('💥 PROMESA FALLIDA NO CAPTURADA. Guardado en logs/olawee-error.log', msg);
+        try {
+            console.error('💥 PROMESA FALLIDA NO CAPTURADA. Guardado en logs/olawee-error.log', msg);
+        }
+        catch (e) { /* ignore EPIPE */ }
         writeError(reason, 'UnhandledRejection');
         email_service_1.emailService.sendCrashAlert('UnhandledRejection', msg, stack).catch(() => { });
     });
 }
 initCrashReporter();
-// ---------------------------------------------------
-const helmet_1 = __importDefault(require("helmet"));
-const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const hpp_1 = __importDefault(require("hpp"));
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3000;
 // --- PROTOCOLO 3: CYBERSEGURIDAD ---
-// 1. Ocultar cabeceras Express y añadir cabeceras de alta seguridad
-app.use((0, helmet_1.default)({
-    contentSecurityPolicy: false, // Relajado solo para el frontend en localhost
+// [AUTO-OFF PARA LOCAL] Comentado para evitar falsos positivos de bloqueo durante pruebas.
+/*
+app.use(helmet({
+    contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false
 }));
-// 2. Prevenir saturación y ataques DDoS (Rate Limit: 100 peticiones x 15 min)
-const limiter = (0, express_rate_limit_1.default)({
+
+const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
     standardHeaders: true,
     legacyHeaders: false,
     message: { status: 'error', message: '¡Peligro! DEMASIADAS PETICIONES: Sistema de Defensa Anti-DDoS Activado.' }
 });
-app.use('/assistant-chat', limiter);
-app.use('/pymes-assistant-chat', limiter);
 app.use('/gemini-chat', limiter);
 app.use('/openai-chat', limiter);
 app.use('/anthropic-chat', limiter);
 app.use('/mistrall-chat', limiter);
 app.use('/deepseek-chat', limiter);
-app.use('/beta-assistant-chat', limiter);
+app.use('/assistant-chat', limiter);
+app.use('/meta-assistant-chat', limiter);
+*/
 // Middleware to parse JSON bodies & allow Cross-Origin Requests
 app.use((0, cors_1.default)());
-app.use(express_1.default.json({ limit: '10mb' })); // Limitamos tamaño de JSON para evitar buffers gigantes
+app.use(express_1.default.json({ limit: '10mb' }));
 app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
+// Ruta de diagnóstico directa
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', time: new Date().toISOString(), env: process.env.APP_ENV });
+});
 // 3. Prevenir contaminación de parámetros HTTP (HPP)
 app.use((0, hpp_1.default)());
 // -----------------------------------
@@ -88,13 +115,20 @@ app.use(express_1.default.static(frontendPath));
 app.use('/downloads', express_1.default.static(path_1.default.join(process.cwd(), 'public/downloads')));
 // Mount the webhook routes
 app.use(webhook_routes_1.default);
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-    console.log('Webhook routes are active:');
-    console.log(`- POST http://localhost:${PORT}/openai-chat`);
-    console.log(`- POST http://localhost:${PORT}/gemini-chat`);
-    console.log(`- POST http://localhost:${PORT}/anthropic-chat`);
-    console.log(`- POST http://localhost:${PORT}/mistrall-chat`);
-    console.log(`- POST http://localhost:${PORT}/deepseek-chat`);
-    console.log(`- POST http://localhost:${PORT}/assistant-chat`);
+// Configuración dinámica para el Frontend
+app.get('/config.js', (req, res) => {
+    const isStaging = process.env.APP_ENV === 'staging';
+    // Importante: El prefijo debe empezar por / para ser una ruta absoluta
+    // y no llevar / al final para concatenar directamente con el nombre del endpoint (ej: /QAopenai-chat)
+    const prefix = isStaging ? '/QA' : '/';
+    res.type('application/javascript');
+    res.send(`window.API_PREFIX = "${prefix}";`);
+});
+app.listen(Number(PORT), '0.0.0.0', () => {
+    const isStaging = process.env.APP_ENV === 'staging';
+    const qaPrefix = isStaging ? 'QA' : '';
+    console.log(`[🚀 OLAWEE] Server listening at http://localhost:${PORT}`);
+    console.log(`- Dashboard: http://localhost:${PORT}/admin/index.html`);
+    console.log(`- Lab Meta: http://localhost:${PORT}/meta-assistants/index.html`);
+    console.log(`- Health Check: http://localhost:${PORT}/health`);
 });

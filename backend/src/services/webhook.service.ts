@@ -2,9 +2,8 @@ import { chatHandlerService } from './chat/chat-handler.service';
 import { documentService } from './shared/document.service';
 import { titleGeneratorAutomation } from '../automations/title-generator.automation';
 import { assistantHandlerService } from './assistants/assistant-handler.service';
-
 import { metaHandlerService } from './meta-assistants/meta-handler.service';
-import { executionLoggerService } from './shared/execution-logger.service';
+import { executionLoggerService } from '../executions/execution-logger.service';
 import { getPrisma } from './shared/prisma.service';
 
 export enum WebhookType {
@@ -25,7 +24,10 @@ async function getDocumentContext(provider: string, sessionId: string): Promise<
         else if (provider === 'meta-assistant') dbTable = db.chatsmeta;
         else dbTable = db.chatsllms;
 
-        const existing = await dbTable.findFirst({ where: { session_id: sessionId } });
+        const existing = await dbTable.findFirst({ 
+            where: { session_id: sessionId },
+            orderBy: { created_at: 'desc' }
+        });
         return existing?.systemprompt_doc || '';
     } catch {
         return '';
@@ -45,7 +47,10 @@ async function saveDocumentContext(provider: string, sessionId: string, docConte
         else if (provider === 'meta-assistant') dbTable = db.chatsmeta;
         else dbTable = db.chatsllms;
 
-        const existing = await dbTable.findFirst({ where: { session_id: sessionId } });
+        const existing = await dbTable.findFirst({ 
+            where: { session_id: sessionId },
+            orderBy: { created_at: 'desc' }
+        });
         if (existing) {
             await dbTable.update({
                 where: { id: existing.id },
@@ -113,51 +118,38 @@ export class WebhookService {
         let finalDocumentContext = transformedBody.systemprompt_doc || '';
 
         // ============================================================
-        // META SPECIALISTS — Saltar documentService: reciben archivos crudos
-        // Los agentes especialistas (invoice_checker, etc.) procesan los
-        // buffers binarios directamente (Excel, PDF, imágenes). Si el
-        // documentService los intercepta primero, los convierte en texto
-        // y los agentes pierden acceso a los archivos originales.
+        // MEMORY RAG: Unified Document Processing
         // ============================================================
-        const isMetaSpecialist = provider === 'meta-assistant' && !!transformedBody.meta_id;
-
-        if (!isMetaSpecialist) {
-            // 1. Si hay archivos, los procesamos (se extrae transcripción de todos)
-            if (files && files.length > 0) {
-                console.log(`[WebhookService] Detected ${files.length} BINARY files — routing through documentService`);
-                const docResult = await documentService.processDocuments(provider, files, transformedBody);
-
-                if (docResult.status === 'success') {
-                    // CONCATENAR: preservar contexto previo y añadir el nuevo
-                    // Si el payload no trajo contexto, lo buscamos de la BD para no sobreescribirlo
-                    if (!finalDocumentContext) {
-                        finalDocumentContext = await getDocumentContext(provider, transformedBody.session_id);
-                    }
-
-                    if (finalDocumentContext) {
-                        finalDocumentContext = `${finalDocumentContext}\n\n---\n\n[Nueva transcripción de archivos]\n${docResult.transcription}`;
-                    } else {
-                        finalDocumentContext = docResult.transcription;
-                    }
-
-                    // 💾 PERSISTIR en BD (fire-and-forget para no bloquear)
-                    saveDocumentContext(provider, transformedBody.session_id, finalDocumentContext).catch((e: any) => {
-                        console.error('[WebhookService] Error saving document context:', e.message);
-                    });
-                } else {
-                    return docResult;
-                }
-            }
-
-            // 2. Si no es documento binario, pero detectamos base64/url en el JSON
-            if ((!files || files.length === 0) && this.isDocumentMetadata(transformedBody)) {
-                console.log(`[WebhookService] Detected document reference in JSON.`);
-            }
-        } else {
-            console.log(`[WebhookService] ⚡ Meta Specialist mode — skipping documentService, passing raw files to agent.`);
+        if (!finalDocumentContext) {
+            // Load previous context from DB explicitly if not provided
+            finalDocumentContext = await getDocumentContext(provider, transformedBody.session_id);
         }
 
+        if (files && files.length > 0) {
+            console.log(`[WebhookService] Detected ${files.length} BINARY files — routing through documentService`);
+            const docResult = await documentService.processDocuments(provider, files, transformedBody);
+
+            if (docResult.status === 'success') {
+                if (finalDocumentContext) {
+                    finalDocumentContext = `${finalDocumentContext}\n\n---\n\n[Nueva transcripción de archivos]\n${docResult.transcription}`;
+                } else {
+                    finalDocumentContext = docResult.transcription;
+                }
+
+                // 💾 PERSISTIR en BD (fire-and-forget para no bloquear)
+                saveDocumentContext(provider, transformedBody.session_id, finalDocumentContext).catch((e: any) => {
+                    console.error('[WebhookService] Error saving document context:', e.message);
+                });
+            } else {
+                return docResult;
+            }
+        }
+
+
+
+
         // 3. Routing
+        const startTime = Date.now();
         let result: any;
         try {
             if (provider === 'assistant') {
@@ -189,14 +181,14 @@ export class WebhookService {
                 result = await chatHandlerService.processMessage(provider, transformedBody, finalDocumentContext);
             }
 
-            // Log successful execution (n8n style)
-            executionLoggerService.logExecution(provider, transformedBody, result, 'SUCCESS');
+        // Log successful execution with duration
+            executionLoggerService.logExecution(provider, transformedBody, result, 'SUCCESS', Date.now() - startTime);
             return result;
 
         } catch (error: any) {
-            // Log failed execution
+            // Log failed execution with error trace
             const errorOutput = { status: 'error', message: error.message || error };
-            executionLoggerService.logExecution(provider, transformedBody, errorOutput, 'ERROR');
+            executionLoggerService.logExecution(provider, transformedBody, errorOutput, 'ERROR', Date.now() - startTime, error);
             throw error;
         }
     }

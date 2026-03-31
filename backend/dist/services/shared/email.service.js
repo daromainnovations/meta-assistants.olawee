@@ -24,7 +24,10 @@ class EmailService {
     async sendCrashAlert(errorTitle, errorMessage, stackTrace) {
         // Si no hay configuracion en el .env, omitimos enviar para no generar error sobre error
         if (!process.env.SMTP_USER || !process.env.SMTP_PASS || !process.env.ALERT_EMAIL_TO) {
-            console.log('[Protocolo 5] No se ha configurado el email de alertas SMTP en el .env. Saltando notificacion.');
+            try {
+                console.log('[Protocolo 5] No se ha configurado el email de alertas SMTP en el .env. Saltando notificacion.');
+            }
+            catch (e) { /* ignore EPIPE */ }
             return;
         }
         try {
