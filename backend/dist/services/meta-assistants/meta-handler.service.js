@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.metaHandlerService = exports.MetaHandlerService = exports.SPECIALIST_REGISTRY = void 0;
 const meta_memory_service_1 = require("./meta-memory.service");
 const title_generator_automation_1 = require("../../automations/title-generator.automation");
+const supabase_storage_service_1 = require("../shared/storage/supabase-storage.service");
 // ============================================================
 // 🤖 IMPORTAR TODOS LOS AGENTES ESPECIALISTAS AQUÍ
 // ============================================================
@@ -87,7 +88,28 @@ class MetaHandlerService {
         // ══════════════════════════════════════════════════════════════
         // 🔲 CAPA BASE — POST-PROCESADO (igual para todos los especialistas)
         // ══════════════════════════════════════════════════════════════
-        // 4. Guardar respuesta del especialista en BD
+        // 4. [NUEVO] Gestión de Archivos Generados (Upload a Storage)
+        if (specialistResult?.generated_files && Array.isArray(specialistResult.generated_files)) {
+            console.log(`[MetaHandler] 📦 Se han detectado ${specialistResult.generated_files.length} archivos para subir.`);
+            for (const file of specialistResult.generated_files) {
+                if (file.buffer) {
+                    try {
+                        const publicUrl = await supabase_storage_service_1.supabaseStorageService.uploadBuffer(file.buffer, file.filename, file.mimetype || 'application/octet-stream');
+                        // Añadir enlace al mensaje de la IA
+                        const downloadLabel = `\n\n📄 **Descargar:** [${file.filename}](${publicUrl})`;
+                        specialistResult.ai_response += downloadLabel;
+                        // Guardar URL y limpiar buffer para la respuesta JSON
+                        file.url = publicUrl;
+                        delete file.buffer;
+                    }
+                    catch (uploadErr) {
+                        console.error(`[MetaHandler] ❌ Error subiendo archivo "${file.filename}":`, uploadErr.message);
+                        specialistResult.ai_response += `\n\n⚠️ Error al generar enlace de descarga para ${file.filename}.`;
+                    }
+                }
+            }
+        }
+        // 5. Guardar respuesta final del especialista en BD
         if (specialistResult?.ai_response) {
             await meta_memory_service_1.metaMemoryService.saveMessage(sessionId, 'ai', specialistResult.ai_response);
         }
