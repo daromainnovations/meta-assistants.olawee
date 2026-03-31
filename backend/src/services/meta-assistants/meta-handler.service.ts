@@ -57,7 +57,7 @@ export const SPECIALIST_REGISTRY: Record<string, SpecialistConfig> = {
     },
     'grant_justification': {
         label: 'Asistente Justificador (Subvenciones)',
-        acceptsFiles: false
+        acceptsFiles: true
     },
     // Aquí irán los futuros especialistas:
     // 'contract_analyzer': { label: 'Analizador de Contratos', acceptsFiles: true },
@@ -112,6 +112,12 @@ export class MetaHandlerService {
         // 1. [OPCIONAL] Procesar archivos → documentContext
         //    Solo si el especialista lo requiere (acceptsFiles: true)
         let finalDocContext = documentContext || '';
+        
+        // Persistencia de Archivos en Sesión (Memory Cache)
+        if (files && files.length > 0) {
+            metaMemoryService.saveSessionFiles(sessionId, files);
+        }
+
         if (config.acceptsFiles && files && files.length > 0) {
             console.log(`[MetaHandler] 📎 Processing ${files.length} files for specialist "${metaId}"...`);
             // Los archivos son pasados directamente al especialista.

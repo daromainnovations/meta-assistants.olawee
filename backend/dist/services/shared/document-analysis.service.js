@@ -92,16 +92,31 @@ class DocumentAnalysisService {
     }
     /**
      * Extrae datos de un Excel y los devuelve como texto estructurado.
+     * Detecta automáticamente la fila de cabeceras para un JSON limpio.
      */
     async transcribeExcel(buffer) {
         try {
-            console.log('[DocumentAnalysis] Transcribing Excel...');
+            console.log('[DocumentAnalysis] Transcribing Excel (Smart Mode)...');
             const workbook = xlsx.read(buffer, { type: 'buffer' });
             const allSheetsText = [];
             for (const sheetName of workbook.SheetNames) {
                 const sheet = workbook.Sheets[sheetName];
-                const rows = xlsx.utils.sheet_to_json(sheet);
-                allSheetsText.push(`--- Hoja: ${sheetName} (${rows.length} filas) ---`);
+                // Encontrar la fila de cabeceras (header row)
+                const aoa = xlsx.utils.sheet_to_json(sheet, { header: 1, range: 0, defval: '' });
+                let headerRowIndex = 0;
+                for (let i = 0; i < Math.min(aoa.length, 15); i++) {
+                    const row = aoa[i];
+                    if (row.some(cell => {
+                        const c = String(cell).toLowerCase();
+                        return c.includes('factura') || c.includes('proveedor') || c.includes('gasto') || c.includes('importe');
+                    })) {
+                        headerRowIndex = i;
+                        break;
+                    }
+                }
+                // Generamos el JSON desde esa fila exacta
+                const rows = xlsx.utils.sheet_to_json(sheet, { range: headerRowIndex });
+                allSheetsText.push(`--- Hoja: ${sheetName} (Desde fila ${headerRowIndex + 1}, ${rows.length} filas datos) ---`);
                 allSheetsText.push(JSON.stringify(rows, null, 2));
             }
             const result = allSheetsText.join('\n');
