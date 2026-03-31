@@ -1,7 +1,8 @@
 import { metaMemoryService } from './meta-memory.service';
-import { documentService } from '../shared/document.service';
 import { titleGeneratorAutomation } from '../../automations/title-generator.automation';
 import { supabaseStorageService } from '../shared/storage/supabase-storage.service';
+import { MetaContext, MetaResult } from './meta.types';
+import { BaseMetaSpecialist } from './base-specialist';
 
 // ============================================================
 // 🤖 IMPORTAR TODOS LOS AGENTES ESPECIALISTAS AQUÍ
@@ -10,77 +11,49 @@ import { invoiceCheckerAgent } from './specialists/invoice-checker/invoice-check
 import { docComparatorAgent } from './specialists/doc-comparator/doc-comparator.agent';
 import { grantJustificationAgent } from './specialists/grant-justification/grant_justification.agent';
 
-// ============================================================
-// 📋 TIPOS
-// ============================================================
-
 /**
  * Configuración de cada especialista en el registro.
- * acceptsFiles: si true, la capa base procesa y transcribe los archivos
- *               antes de pasarlos al especialista.
- *               si false, el procesador de archivos se salta completamente.
  */
 export interface SpecialistConfig {
     label: string;
     acceptsFiles: boolean;
-}
-
-/**
- * Contexto pre-procesado que la capa base prepara y entrega al especialista.
- * El especialista recibe todo listo para trabajar.
- */
-export interface MetaContext {
-    sessionId: string;
-    userMessage: string;
-    files: Express.Multer.File[];
-    docContext: string;
-    history: any[];
-    model: string;
+    agent: BaseMetaSpecialist; // Instancia del agente que extiende BaseMetaSpecialist
 }
 
 // ============================================================
-// 📋 REGISTRO DE ESPECIALISTAS
-// ============================================================
-// Para registrar un nuevo especialista:
-//   1. Añade su entrada aquí (con acceptsFiles true o false)
-//   2. Importa el agente arriba
-//   3. Añade el case en routeToSpecialist()
+// 📋 REGISTRO DE ESPECIALISTAS (Plug & Play)
 // ============================================================
 export const SPECIALIST_REGISTRY: Record<string, SpecialistConfig> = {
     'invoice_checker': {
         label: 'Verificador de Facturas vs Excel',
-        acceptsFiles: true
+        acceptsFiles: true,
+        agent: invoiceCheckerAgent as any
     },
     'doc_comparator': {
         label: 'Comparador de Documentos (Genérico)',
-        acceptsFiles: true
+        acceptsFiles: true,
+        agent: docComparatorAgent as any
     },
     'grant_justification': {
         label: 'Asistente Justificador (Subvenciones)',
-        acceptsFiles: true
-    },
-    // Aquí irán los futuros especialistas:
-    // 'contract_analyzer': { label: 'Analizador de Contratos', acceptsFiles: true },
-    // 'chat_advisor':      { label: 'Asesor de Chat',          acceptsFiles: false },
+        acceptsFiles: true,
+        agent: grantJustificationAgent as any
+    }
 };
 
 export class MetaHandlerService {
 
     /**
      * CAPA BASE COMÚN — Punto de entrada del sistema Meta.
-     *
-     * Este método actúa como el "sandwich":
-     *  - Pre-procesado superior (fijo): carga BD, archivos, historial, guarda input
-     *  - Motor del especialista (intercambiable): según meta_id
-     *  - Post-procesado inferior (fijo): guarda output, devuelve respuesta
+     * Gestiona las "Tres Bases" (Chat Memory, Doc Memory, Titling) y delega al Especialista.
      */
     async processMessage(
         sessionId: string,
         userMessageContent: string,
-        systemPrompt: string,
+        systemPrompt: string, // No se usa directamente aquí, se prefiere el prompt del especialista
         modelStr: string,
-        historyPayload: any[],
-        documentContext: string,
+        historyPayload: any[], // Obsoleto, cargamos de BD
+        documentContext: string, // Contexto que viene del webhook (transcripción fresca)
         toolsArray: number[] = [],
         metaId?: string,
         files?: Express.Multer.File[]
@@ -98,137 +71,83 @@ export class MetaHandlerService {
         if (!config) {
             return {
                 status: 'error',
-                message: `Especialista "${metaId}" no encontrado. Disponibles: ${Object.keys(SPECIALIST_REGISTRY).join(', ')}`,
+                message: `Especialista "${metaId}" no encontrado.`,
                 timestamp: new Date().toISOString()
             };
         }
 
-        console.log(`\n[MetaHandler] ▶ SPECIALIST MODE — ID: "${metaId}" (${config.label}), Session: "${sessionId}"`);
+        console.log(`\n[MetaHandler] 🚀 --- START SPECIALIST: "${metaId}" ---`);
 
         // ══════════════════════════════════════════════════════════════
-        // 🔲 CAPA BASE — PRE-PROCESADO (igual para todos los especialistas)
+        // 🔲 BASE 1: MEMORIA DE ARCHIVOS (PERSISTENCIA TURNO A TURNO)
         // ══════════════════════════════════════════════════════════════
-
-        // 1. [OPCIONAL] Procesar archivos → documentContext
-        //    Solo si el especialista lo requiere (acceptsFiles: true)
-        let finalDocContext = documentContext || '';
-        
-        // Persistencia de Archivos en Sesión (Memory Cache)
         if (files && files.length > 0) {
-            metaMemoryService.saveSessionFiles(sessionId, files);
+            metaMemoryService.saveSessionFiles(sessionId, metaId, files);
         }
+        const allSessionFiles = metaMemoryService.getSessionFiles(sessionId, metaId);
 
-        if (config.acceptsFiles && files && files.length > 0) {
-            console.log(`[MetaHandler] 📎 Processing ${files.length} files for specialist "${metaId}"...`);
-            // Los archivos son pasados directamente al especialista.
-            // El especialista los lee con sus propias herramientas (extractExcelData, PDF inline, etc.)
-            // porque cada uno los procesa de forma diferente.
-        }
+        // ══════════════════════════════════════════════════════════════
+        // 🔲 BASE 2: MEMORIA DE DOCUMENTOS (RESILIENTE)
+        // ══════════════════════════════════════════════════════════════
+        const finalDocContext = await metaMemoryService.getEffectiveContext(sessionId, metaId, documentContext);
 
-        // 2. Guardar mensaje del usuario en BD
-        await metaMemoryService.saveMessage(sessionId, 'human', userMessageContent);
+        // ══════════════════════════════════════════════════════════════
+        // 🔲 BASE 3: MEMORIA DE CONVERSACIÓN (AISLADA)
+        // ══════════════════════════════════════════════════════════════
+        const history = await metaMemoryService.getMetaChatHistory(sessionId, metaId);
 
-        // 3. Lanzar título automático (fire & forget)
+        // ══════════════════════════════════════════════════════════════
+        // 🔲 AUTO-TITULADO (FIRE & FORGET)
+        // ══════════════════════════════════════════════════════════════
         if (userMessageContent) {
-            titleGeneratorAutomation.generateTitleAsync(sessionId, userMessageContent, 'meta-assistant', metaId).catch((e: any) => {
-                console.error('[MetaHandler] Background title error:', e);
+            titleGeneratorAutomation.generateTitleAsync(sessionId, userMessageContent, 'meta-assistant', metaId).catch(e => {
+                console.error('[MetaHandler] Title error:', e);
             });
         }
 
+        // GUARDAR MENSAJE USUARIO EN BD (AISLADO)
+        await metaMemoryService.saveMessage(sessionId, metaId, 'human', userMessageContent);
+
         // ══════════════════════════════════════════════════════════════
-        // 🔴 MOTOR DEL ESPECIALISTA — El único punto que cambia por meta_id
+        // 🔴 EJECUCIÓN DEL ESPECIALISTA (Lógica de Negocio)
         // ══════════════════════════════════════════════════════════════
-        const specialistResult = await this.routeToSpecialist(
-            metaId,
-            userMessageContent,
-            files || [],
+        const context: MetaContext = {
             sessionId,
-            finalDocContext,
-            modelStr
-        );
+            metaId,
+            userMessage: userMessageContent,
+            files: allSessionFiles,
+            docContext: finalDocContext,
+            history: history,
+            model: modelStr
+        };
+
+        const specialistResult: MetaResult = await config.agent.run(context);
 
         // ══════════════════════════════════════════════════════════════
-        // 🔲 CAPA BASE — POST-PROCESADO (igual para todos los especialistas)
+        // 🔲 POST-PROCESADO: ARCHIVOS GENERADOS Y PERSISTENCIA AI
         // ══════════════════════════════════════════════════════════════
-
-        // 4. [NUEVO] Gestión de Archivos Generados (Upload a Storage)
-        if (specialistResult?.generated_files && Array.isArray(specialistResult.generated_files)) {
-            console.log(`[MetaHandler] 📦 Se han detectado ${specialistResult.generated_files.length} archivos para subir.`);
-            
+        
+        if (specialistResult?.generated_files && specialistResult.generated_files.length > 0) {
             for (const file of specialistResult.generated_files) {
                 if (file.buffer) {
                     try {
-                        const publicUrl = await supabaseStorageService.uploadBuffer(
-                            file.buffer, 
-                            file.filename, 
-                            file.mimetype || 'application/octet-stream'
-                        );
-                        
-                        // Añadir enlace al mensaje de la IA
-                        const downloadLabel = `\n\n📄 **Descargar:** [${file.filename}](${publicUrl})`;
-                        specialistResult.ai_response += downloadLabel;
-                        
-                        // Guardar URL y limpiar buffer para la respuesta JSON
+                        const publicUrl = await supabaseStorageService.uploadBuffer(file.buffer, file.filename, file.mimetype || 'application/octet-stream');
                         file.url = publicUrl;
+                        specialistResult.ai_response += `\n\n📄 **Descargar:** [${file.filename}](${publicUrl})`;
                         delete file.buffer;
-                    } catch (uploadErr: any) {
-                        console.error(`[MetaHandler] ❌ Error subiendo archivo "${file.filename}":`, uploadErr.message);
-                        specialistResult.ai_response += `\n\n⚠️ Error al generar enlace de descarga para ${file.filename}.`;
+                    } catch (err: any) {
+                        console.error(`[MetaHandler] Error upload:`, err.message);
                     }
                 }
             }
         }
 
-        // 5. Guardar respuesta final del especialista en BD
+        // GUARDAR RESPUESTA IA EN BD (AISLADA)
         if (specialistResult?.ai_response) {
-            await metaMemoryService.saveMessage(sessionId, 'ai', specialistResult.ai_response);
+            await metaMemoryService.saveMessage(sessionId, metaId, 'ai', specialistResult.ai_response);
         }
 
         return specialistResult;
-    }
-
-    /**
-     * Router: despacha al motor del especialista correcto según meta_id.
-     *
-     * Para añadir un nuevo especialista:
-     *   1. Crea su carpeta en /specialists/mi-agente/
-     *   2. Importa el agente arriba
-     *   3. Añade su case aquí
-     *   4. Añade su entrada en SPECIALIST_REGISTRY
-     */
-    private async routeToSpecialist(
-        metaId: string,
-        userMessage: string,
-        files: Express.Multer.File[],
-        sessionId: string,
-        docContext: string,
-        model: string
-    ): Promise<any> {
-        console.log(`[MetaHandler] 🎯 Routing to SPECIALIST: "${metaId}"`);
-
-        switch (metaId) {
-            case 'invoice_checker':
-                return await invoiceCheckerAgent.run(userMessage, files, sessionId, docContext);
-
-            case 'doc_comparator':
-                return await docComparatorAgent.run(userMessage, files, sessionId, docContext);
-
-            case 'grant_justification':
-                return await grantJustificationAgent.run(userMessage, files, sessionId, docContext);
-
-            // ──────────────────────────────────────────────────────────────
-            // 🆕 AQUÍ AÑADES EL NUEVO ESPECIALISTA:
-            // case 'mi_nuevo_asistente':
-            //     return await miNuevoAsistenteAgent.run(userMessage, files, sessionId);
-            // ──────────────────────────────────────────────────────────────
-
-            default:
-                return {
-                    status: 'error',
-                    message: `Agente especialista "${metaId}" no encontrado. Especialistas disponibles: ${Object.keys(SPECIALIST_REGISTRY).join(', ')}`,
-                    timestamp: new Date().toISOString()
-                };
-        }
     }
 }
 
