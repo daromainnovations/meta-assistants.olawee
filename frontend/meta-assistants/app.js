@@ -17,6 +17,7 @@ let currentFile = null;
 // ============================================================
 function renderMarkdown(text) {
     if (!text) return '';
+    if (typeof text !== 'string') text = String(text);
 
     let html = text
         // Horizontal rules
@@ -39,7 +40,9 @@ function renderMarkdown(text) {
         .replace(/⚠️ NO LOCALIZADA EN EXCEL/g, '<span class="text-amber-400 font-semibold">⚠️ NO LOCALIZADA EN EXCEL</span>')
         .replace(/⚠️ PENDIENTE/g, '<span class="text-amber-400 font-semibold">⚠️ PENDIENTE</span>')
         // Unordered list items
-        .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc text-gray-300 my-0.5">$1</li>');
+        .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc text-gray-300 my-0.5">$1</li>')
+        // Links [text](url)
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline decoration-indigo-400/30 underline-offset-4 font-medium transition-colors"><i class="fa-solid fa-download mr-1"></i>$1</a>');
 
     // Wrap consecutive <li> blocks in <ul>
     html = html.replace(/((<li[^>]*>.*?<\/li>\s*)+)/gs, '<ul class="my-1 list-outside pl-4 space-y-0.5">$1</ul>');
@@ -58,7 +61,10 @@ function renderMarkdown(text) {
 const SPECIALIST_LABELS = {
     'invoice_checker': { label: '🔍 InvoiceChecker', color: 'text-pink-300' },
     'doc_comparator': { label: '📄 DocComparator', color: 'text-emerald-300' },
+    'grant_justification': { label: '⚖️ Justificación Subv.', color: 'text-amber-300' },
+    'template_filler': { label: '📝 TemplateFiller', color: 'text-blue-300' },
 };
+
 
 function getAgentInfo() {
     const val = specialistSelect ? specialistSelect.value : '';
@@ -129,8 +135,9 @@ async function sendMessage() {
     const specialistId = specialistSelect ? specialistSelect.value : '';
 
     try {
-        const prefix = window.API_PREFIX || '';
-        const endpointUrl = `${prefix}/meta-assistant-chat`;
+        const prefix = window.API_PREFIX || '/';
+        const endpointUrl = `${prefix}meta-assistant-chat`;
+
         const formData = new FormData();
         formData.append('session_id', session_id);
         formData.append('model', model);
@@ -207,6 +214,12 @@ async function sendMessage() {
 function appendMessage(sender, text, contextUsed = false) {
     const isUser = sender === 'user';
     const isError = sender === 'error';
+
+    // Asegurar que el texto sea un String para evitar errores de .replace()
+    if (typeof text !== 'string') {
+        text = typeof text === 'object' ? JSON.stringify(text) : String(text);
+    }
+
     const container = document.createElement('div');
 
     container.className = isUser

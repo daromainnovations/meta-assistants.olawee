@@ -10,6 +10,7 @@ import { BaseMetaSpecialist } from './base-specialist';
 import { invoiceCheckerAgent } from './specialists/invoice-checker/invoice-checker.agent';
 import { docComparatorAgent } from './specialists/doc-comparator/doc-comparator.agent';
 import { grantJustificationAgent } from './specialists/grant-justification/grant_justification.agent';
+import { templateFillerAgent } from './specialists/template-filler/template-filler.agent';
 
 /**
  * Configuración de cada especialista en el registro.
@@ -38,6 +39,11 @@ export const SPECIALIST_REGISTRY: Record<string, SpecialistConfig> = {
         label: 'Asistente Justificador (Subvenciones)',
         acceptsFiles: true,
         agent: grantJustificationAgent as any
+    },
+    'template_filler': {
+        label: 'Rellenador AI de Plantillas',
+        acceptsFiles: true,
+        agent: templateFillerAgent as any
     }
 };
 
@@ -128,12 +134,32 @@ export class MetaHandlerService {
         // ══════════════════════════════════════════════════════════════
         
         if (specialistResult?.generated_files && specialistResult.generated_files.length > 0) {
+            // Mapear bucket por especialista
+            const BUCKET_MAP: Record<string, string> = {
+                'template_filler': 'template-filler-files',
+                'grant_justification': 'grant-justification-files'
+            };
+            const targetBucket = BUCKET_MAP[metaId] || process.env.SUPABASE_STORAGE_BUCKET || 'olawee-files';
+
             for (const file of specialistResult.generated_files) {
                 if (file.buffer) {
                     try {
-                        const publicUrl = await supabaseStorageService.uploadBuffer(file.buffer, file.filename, file.mimetype || 'application/octet-stream');
+                        const publicUrl = await supabaseStorageService.uploadBuffer(
+                            file.buffer, 
+                            file.filename, 
+                            file.mimetype || 'application/octet-stream',
+                            targetBucket
+                        );
                         file.url = publicUrl;
-                        specialistResult.ai_response += `\n\n📄 **Descargar:** [${file.filename}](${publicUrl})`;
+                        
+                        const linkText = `\n\n📄 **Descargar:** [${file.filename}](${publicUrl})`;
+                        
+                        if (specialistResult.ai_response.includes('{{FILE_LINK}}')) {
+                            specialistResult.ai_response = specialistResult.ai_response.replace('{{FILE_LINK}}', linkText);
+                        } else {
+                            specialistResult.ai_response += linkText;
+                        }
+                        
                         delete file.buffer;
                     } catch (err: any) {
                         console.error(`[MetaHandler] Error upload:`, err.message);
