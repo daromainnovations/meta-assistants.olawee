@@ -25,13 +25,21 @@ export interface InvoiceData {
 export async function extractDataFromFiles(files: Express.Multer.File[]): Promise<ExtractedData> {
   const result: ExtractedData = { pdfTexts: [], excelData: [] };
 
+  let visionCallCount = 0;
+
   for (const file of files) {
     const filename = file.originalname.toLowerCase();
 
     // === PDF / Imágenes: OCR con Gemini Vision ===
     if (filename.endsWith('.pdf') || filename.endsWith('.jpg') || filename.endsWith('.jpeg') || filename.endsWith('.png')) {
       try {
-        console.log(`[DocumentParser] 🔍 Extrayendo con Gemini Vision: ${file.originalname}`);
+        // ⏳ Throttle: esperar 1.2s entre llamadas a Gemini Vision para evitar rate limit (429)
+        if (visionCallCount > 0) {
+          await new Promise(resolve => setTimeout(resolve, 1200));
+        }
+        visionCallCount++;
+
+        console.log(`[DocumentParser] 🔍 [${visionCallCount}] Extrayendo con Gemini Vision: ${file.originalname}`);
         const { text, structured } = await extractViaGeminiVision(file);
         result.pdfTexts.push({ filename: file.originalname, text, structured });
         console.log(`[DocumentParser] ✅ Extraído: ${file.originalname} | Factura: ${structured?.numFactura || 'N/A'} | Total: ${structured?.total || 'N/A'}`);

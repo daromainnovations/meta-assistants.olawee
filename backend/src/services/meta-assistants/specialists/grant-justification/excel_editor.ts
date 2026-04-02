@@ -63,12 +63,17 @@ function findColumnIndex(headers: string[], fieldKey: string): { index: number; 
 
 /**
  * Motor de Edición Robusto de Excel (Mapeo Semántico + Preservación de Estilos)
+ * Modos:
+ *  - append: añadir nueva fila al final de los datos
+ *  - after_value: insertar nueva fila tras una fila que contenga el valor
+ *  - at_index: insertar en índice concreto
+ *  - update_row: EDITAR una fila EXISTENTE que contenga el valor de referencia
  */
 export function editExcel(
   templateBuffer: Buffer,
   sheetName: string | null,
   newRows: any[],
-  insertionOptions?: { mode: 'append' | 'after_value' | 'at_index', value?: any }
+  insertionOptions?: { mode: 'append' | 'after_value' | 'at_index' | 'update_row', value?: any }
 ): Buffer {
   // Limpiar log de esta ejecución
   writeLog(`--- INICIO EDICIÓN EXCEL ---`);
@@ -119,7 +124,54 @@ export function editExcel(
   const headers = aoa[headerRowIndex].map((h: any) => String(h).trim());
   writeLog(`Cabeceras detectadas en fila ${headerRowIndex + 1}: [${headers.join(' | ')}]`);
 
-  // 4. PREPARAR FILAS con Mapeo Semántico
+  // Rango del documento (necesario tanto para update_row como para append)
+  const range = xlsx.utils.decode_range(ws['!ref'] || 'A1');
+
+  // ─────────────────────────────────────────────────────────────────
+  // MODO UPDATE_ROW: Editar columnas de una fila existente
+  // ─────────────────────────────────────────────────────────────────
+  if (insertionOptions?.mode === 'update_row' && insertionOptions.value) {
+    const searchValue = String(insertionOptions.value).toLowerCase().trim();
+    writeLog(`🔍 UPDATE_ROW: Buscando fila con valor "${searchValue}"...`);
+
+    const totalRows = range.e.r;
+    let targetRowIndex = -1;
+
+    for (let r = headerRowIndex + 1; r <= totalRows; r++) {
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const cell = ws[xlsx.utils.encode_cell({ r, c })];
+        if (cell && String(cell.v).toLowerCase().trim().includes(searchValue)) {
+          targetRowIndex = r;
+          writeLog(`  📍 Encontrado "${searchValue}" en fila ${r + 1}, col ${c + 1}`);
+          break;
+        }
+      }
+      if (targetRowIndex !== -1) break;
+    }
+
+    if (targetRowIndex === -1) {
+      writeLog(`  ⚠️ UPDATE_ROW: No se encontró "${searchValue}" en ninguna fila. Haciendo append.`);
+    } else {
+      // Aplicar actualizaciones de columnas a esa fila
+      const updateData = newRows[0] || {};
+      for (const [key, value] of Object.entries(updateData)) {
+        if (value === null || value === undefined || value === '') continue;
+        const match = findColumnIndex(headers, key);
+        if (match.index !== -1) {
+          const cellAddr = xlsx.utils.encode_cell({ r: targetRowIndex, c: match.index });
+          if (!ws[cellAddr]) ws[cellAddr] = {};
+          ws[cellAddr].v = value;
+          ws[cellAddr].t = typeof value === 'number' ? 'n' : 's';
+          writeLog(`  ✅ Actualizado "${key}" → Col ${match.index} ("${match.matchedHeader}") = ${value}`);
+        } else {
+          writeLog(`  ⚠️ Campo "${key}" sin columna mapeada`);
+        }
+      }
+      writeLog(`--- FIN EDICIÓN EXCEL (UPDATE_ROW) ✅ ---`);
+      return xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    }
+  }
+
   const rowsToInsert: any[][] = [];
 
   for (const rawRow of newRows) {
@@ -143,7 +195,6 @@ export function editExcel(
   }
 
   // 5. DETERMINAR PUNTO DE INSERCIÓN (protegiendo filas de totales/firmas)
-  const range = xlsx.utils.decode_range(ws['!ref'] || 'A1');
   let insertionPoint = headerRowIndex + 1;
 
   if (insertionOptions?.mode === 'after_value' && insertionOptions.value) {

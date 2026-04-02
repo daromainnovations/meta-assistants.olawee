@@ -138,12 +138,12 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
               },
               insertionMode: {
                 type: 'string',
-                enum: ['append', 'after_value', 'at_index'],
-                description: 'Modo de inserción: append (al final), after_value (después de un valor), at_index (en una posición exacta)'
+                enum: ['append', 'after_value', 'at_index', 'update_row'],
+                description: 'Modo de operación: append=añadir nueva fila al final, after_value=insertar tras una fila concreta, at_index=posición exacta, update_row=EDITAR una fila EXISTENTE (usar cuando el usuario dice "cambiar", "modificar", "corregir" o "actualizar" un valor de una fila existente)'
               },
               referenceValue: {
                 type: 'string',
-                description: 'Valor de referencia para after_value (ej: número de factura anterior)'
+                description: 'Para update_row: el identificador de la fila a editar (ej: "G63", "FAC-2024-001", nombre del proveedor). Para after_value: valor tras el que insertar la nueva fila.'
               }
             },
             required: ['registro']
@@ -210,12 +210,15 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
         );
 
         const ts = Date.now();
+        const isUpdate = toolCall.args.insertionMode === 'update_row';
         const newFilename = `justificado_${ts}_${excelFile.originalname.replace(/\s+/g, '_')}`;
-        writeLog(`Excel generado: ${newFilename}`);
+        const actionVerb = isUpdate ? 'actualizado' : 'registrado';
+        const rowRef = toolCall.args.referenceValue ? ` (fila: ${toolCall.args.referenceValue})` : '';
+        writeLog(`Excel generado: ${newFilename} | Modo: ${toolCall.args.insertionMode || 'append'}`);
 
         return {
           status: 'success',
-          ai_response: `✅ He registrado el gasto en el Excel de seguimiento.\n\n**Datos insertados:**\n- Factura: ${toolCall.args.registro.numFactura || 'N/A'}\n- Proveedor: ${toolCall.args.registro.proveedor || 'N/A'}\n- Total: ${toolCall.args.registro.total || 'N/A'}€\n\n{{FILE_LINK}}`,
+          ai_response: `✅ He ${actionVerb} el dato en el Excel de seguimiento${rowRef}.\n\n**Datos ${isUpdate ? 'modificados' : 'insertados'}:**\n- Factura: ${toolCall.args.registro.numFactura || toolCall.args.referenceValue || 'N/A'}\n- Proveedor: ${toolCall.args.registro.proveedor || 'N/A'}\n- Total/Importe: ${toolCall.args.registro.total || toolCall.args.registro.importeImputado || 'N/A'}\n\n{{FILE_LINK}}`,
           specialist: metaId,
           generated_files: [{
             filename: newFilename,
