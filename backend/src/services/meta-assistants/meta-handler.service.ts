@@ -11,6 +11,7 @@ import { invoiceCheckerAgent } from './specialists/invoice-checker/invoice-check
 import { docComparatorAgent } from './specialists/doc-comparator/doc-comparator.agent';
 import { grantJustificationAgent } from './specialists/grant-justification/grant_justification.agent';
 import { templateFillerAgent } from './specialists/template-filler/template-filler.agent';
+import { cvScreenerAgent } from './specialists/cv-screener/cv_screener.agent';
 
 /**
  * Configuración de cada especialista en el registro.
@@ -44,6 +45,11 @@ export const SPECIALIST_REGISTRY: Record<string, SpecialistConfig> = {
         label: 'Rellenador AI de Plantillas',
         acceptsFiles: true,
         agent: templateFillerAgent as any
+    },
+    'cv_screening_rrhh': {
+        label: '👤 Cribado de CVs (RRHH)',
+        acceptsFiles: true,
+        agent: cvScreenerAgent as any
     }
 };
 
