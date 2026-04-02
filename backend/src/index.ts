@@ -108,8 +108,8 @@ app.use('/meta-assistant-chat', limiter);
 
 // Middleware to parse JSON bodies & allow Cross-Origin Requests
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Ruta de diagnóstico directa
 app.get('/health', (req, res) => {
@@ -143,6 +143,23 @@ app.get('/config.js', (req, res) => {
 });
 
 
+
+// 🛡️ GLOBAL ERROR HANDLER — Devuelve siempre JSON, nunca HTML
+// Esto previene el error "Unexpected token '<'" en el cliente cuando Multer
+// u otro middleware lanza un error (ej: demasiados archivos, archivo muy grande).
+app.use((err: any, req: any, res: any, next: any) => {
+    if (err.code === 'LIMIT_FILE_COUNT') {
+        return res.status(400).json({ status: 'error', message: `Demasiados archivos. El límite es de 50 archivos por solicitud.` });
+    }
+    if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ status: 'error', message: `Archivo demasiado grande. El límite es de 100MB por archivo.` });
+    }
+    if (err.type === 'entity.too.large') {
+        return res.status(413).json({ status: 'error', message: 'El cuerpo de la solicitud es demasiado grande.' });
+    }
+    console.error('[GlobalErrorHandler]', err.message);
+    return res.status(500).json({ status: 'error', message: err.message || 'Internal Server Error' });
+});
 
 app.listen(Number(PORT), '0.0.0.0', () => {
     const isStaging = process.env.APP_ENV === 'staging';

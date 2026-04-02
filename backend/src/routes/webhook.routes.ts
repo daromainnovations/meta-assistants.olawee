@@ -34,11 +34,14 @@ router.post('/api/executions/retry/:id', retryExecution);
 const storage = multer.memoryStorage();
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB límite
+    limits: {
+        fileSize: 100 * 1024 * 1024, // 100MB por archivo
+        files: 50                     // Hasta 50 archivos simultáneos
+    }
 });
 
 // Middleware para manejar "multipart/form-data" o "application/json"
-const handleUpload = upload.array('files', 10);
+const handleUpload = upload.array('files', 50); // 50 archivos simultáneos
 
 // Helper para procesar la respuesta
 const processWebhook = async (req: Request, res: Response, provider: string) => {
