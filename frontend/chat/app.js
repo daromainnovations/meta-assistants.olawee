@@ -6,7 +6,12 @@ const filePreview = document.getElementById('filePreview');
 const fileNameSpan = document.getElementById('fileName');
 const removeFileBtn = document.getElementById('removeFileBtn');
 const sessionIdInput = document.getElementById('sessionId');
-const modelSelect = document.getElementById('modelSelect');
+
+// 🧪 QA ONLY: Generar session ID único en cada carga (no aplica en producción)
+if (sessionIdInput) {
+    sessionIdInput.value = 'session_' + Math.random().toString(36).substring(2, 10);
+}
+
 const apiKeyInput = document.getElementById('apiKeyInput');
 
 // Endpoint Backend
