@@ -20,16 +20,58 @@ export class SupabaseStorageService {
     }
 
     /**
+     * Asegura que el bucket existe, si no lo crea.
+     */
+    private async ensureBucket(bucketName: string): Promise<void> {
+        const { data: buckets, error: listError } = await this.supabase.storage.listBuckets();
+        
+        if (listError) {
+            console.error('[SupabaseStorage] Error listando buckets:', listError.message);
+            return;
+        }
+
+        const exists = buckets.some(b => b.name === bucketName);
+        if (!exists) {
+            console.log(`[SupabaseStorage] 📦 Creando nuevo bucket público: '${bucketName}'`);
+            const { error: createError } = await this.supabase.storage.createBucket(bucketName, {
+                public: true,
+                fileSizeLimit: 10 * 1024 * 1024 // 10MB
+            });
+
+            if (createError) {
+                console.error(`[SupabaseStorage] Error creando bucket '${bucketName}':`, createError.message);
+            }
+        }
+    }
+
+    /**
+     * Helper para limpiar nombres de archivo.
+     */
+    private sanitizeFilename(fileName: string): string {
+        return fileName
+            .normalize('NFD') // Descomponer acentos
+            .replace(/[\u0300-\u036f]/g, '') // Quitar los acentos
+            .replace(/[^a-zA-Z0-9.\-_]/g, '_') // Cambiar todo lo demás por _
+            .replace(/_{2,}/g, '_'); // Evitar múltiples guiones bajos seguidos
+    }
+
+    /**
      * Sube un Buffer (archivo generado en memoria) a Supabase Storage y devuelve su URL.
      */
-    async uploadBuffer(buffer: Buffer, fileName: string, contentType: string): Promise<string> {
-        // Asegurar que el nombre del archivo no pise otros, añadiendo timestamp
-        const uniqueFileName = `${Date.now()}_${fileName.replace(/\s+/g, '_')}`;
+    async uploadBuffer(buffer: Buffer, fileName: string, contentType: string, bucketOverride?: string): Promise<string> {
+        const targetBucket = bucketOverride || this.bucketName;
+        
+        // Asegurar que el bucket existe antes de subir
+        await this.ensureBucket(targetBucket);
 
-        console.log(`[SupabaseStorage] Subiendo buffer al bucket '${this.bucketName}': ${uniqueFileName}`);
+        // Asegurar que el nombre del archivo no pise otros, añadiendo timestamp
+        const cleanName = this.sanitizeFilename(fileName);
+        const uniqueFileName = `${Date.now()}_${cleanName}`;
+
+        console.log(`[SupabaseStorage] Subiendo buffer al bucket '${targetBucket}': ${uniqueFileName}`);
 
         const { data, error } = await this.supabase.storage
-            .from(this.bucketName)
+            .from(targetBucket)
             .upload(uniqueFileName, buffer, {
                 contentType,
                 upsert: true
@@ -40,9 +82,9 @@ export class SupabaseStorageService {
             throw new Error(`Error en Storage: ${error.message}`);
         }
 
-        // Obtener URL pública (asumimos bucket público, o al menos requerimos la URL para el chat)
+        // Obtener URL pública (asumimos bucket público)
         const { data: publicData } = this.supabase.storage
-            .from(this.bucketName)
+            .from(targetBucket)
             .getPublicUrl(uniqueFileName);
 
         console.log(`[SupabaseStorage] Subida exitosa. URL: ${publicData.publicUrl}`);
