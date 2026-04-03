@@ -145,4 +145,28 @@ export class RankingGenerator {
       doc.end();
     });
   }
+
+  /**
+   * 🏗️ QA HELPER: Genera un DOCX de prueba con N candidatos
+   * (Requiere mammoth o similar para leer, pero aquí solo escribimos texto simple para simular)
+   */
+  static async generateTestCVsDocx(candidates: { nombre: string; experienciaTotalAnos: number }[]): Promise<Buffer> {
+    // Para simplificar sin añadir dependencias de escritura DOCX complejas (como docx library),
+    // vamos a devolver un Buffer de texto plano que mammoth pueda leer como si fuera un DOC sin formato,
+    // o simplemente un archivo de texto que el DocumentService pueda procesar.
+    // NOTA: El DocumentService de OLAWEE también acepta archivos de texto.
+    
+    let content = "=== ARCHIVO DE PRUEBA: 10 CANDIDATOS PARA OLAWEE ===\n\n";
+    candidates.forEach((c, i) => {
+      content += `CANDIDATO #${i+1}\n`;
+      content += `Nombre: ${c.nombre}\n`;
+      content += `Experiencia: ${c.experienciaTotalAnos} años en desarrollo de software.\n`;
+      content += `Skills: React, TypeScript, Python, Node.js, SQL.\n`;
+      content += `Formación: Grado en Ingeniería Informática.\n`;
+      content += `Idiomas: Inglés B2, Español Nativo.\n`;
+      content += `Resumen: Desarrollador apasionado con amplia experiencia en stacks modernos y resolución de problemas.\n\n`;
+    });
+
+    return Buffer.from(content, 'utf-8');
+  }
 }

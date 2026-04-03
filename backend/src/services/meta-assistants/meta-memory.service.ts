@@ -13,6 +13,7 @@ export class MetaMemoryService {
     // 🎯 Caché temporal en memoria para buffers de archivos e hilos (aislamiento por Meta ID)
     private sessionFilesCache = new Map<string, Express.Multer.File[]>();
     private sessionContextCache = new Map<string, string>();
+    private sessionMetadataCache = new Map<string, any>(); // 🎒 Nueva mochila de metadatos (JSON)
     private sessionTimeouts = new Map<string, NodeJS.Timeout>();
 
     private readonly SESSION_TTL = 30 * 60 * 1000; // 30 minutos
@@ -34,6 +35,7 @@ export class MetaMemoryService {
             console.log(`[MetaMemory] 🧹 TTL Expirado. Limpiando caché aislada: ${key}`);
             this.sessionFilesCache.delete(key);
             this.sessionContextCache.delete(key);
+            this.sessionMetadataCache.delete(key);
             this.sessionTimeouts.delete(key);
         }, this.SESSION_TTL);
 
@@ -177,6 +179,25 @@ export class MetaMemoryService {
     getSessionFiles(sessionId: string, metaId: string): Express.Multer.File[] {
         const key = this.getCacheKey(sessionId, metaId);
         return this.sessionFilesCache.get(key) || [];
+    }
+
+    /**
+     * 🎒 Guarda metadatos técnicos temporales
+     */
+    saveSessionMetadata(sessionId: string, metaId: string, key: string, data: any) {
+        const cacheKey = this.getCacheKey(sessionId, metaId);
+        const current = this.sessionMetadataCache.get(cacheKey) || {};
+        this.sessionMetadataCache.set(cacheKey, { ...current, [key]: data });
+        this.refreshSession(sessionId, metaId);
+    }
+
+    /**
+     * 🎒 Recupera metadatos técnicos temporales
+     */
+    getSessionMetadata(sessionId: string, metaId: string, key: string): any {
+        const cacheKey = this.getCacheKey(sessionId, metaId);
+        const current = this.sessionMetadataCache.get(cacheKey);
+        return current ? current[key] : null;
     }
 }
 
