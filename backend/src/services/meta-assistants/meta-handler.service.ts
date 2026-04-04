@@ -11,6 +11,7 @@ import { invoiceCheckerAgent } from './specialists/invoice-checker/invoice-check
 import { docComparatorAgent } from './specialists/doc-comparator/doc-comparator.agent';
 import { grantJustificationAgent } from './specialists/grant-justification/grant_justification.agent';
 import { templateFillerAgent } from './specialists/template-filler/template-filler.agent';
+import { cvScreenerAgent } from './specialists/cv-screener/cv_screener.agent';
 
 /**
  * Configuración de cada especialista en el registro.
@@ -44,6 +45,11 @@ export const SPECIALIST_REGISTRY: Record<string, SpecialistConfig> = {
         label: 'Rellenador AI de Plantillas',
         acceptsFiles: true,
         agent: templateFillerAgent as any
+    },
+    'cv_screening_rrhh': {
+        label: '👤 Cribado de CVs (RRHH)',
+        acceptsFiles: true,
+        agent: cvScreenerAgent as any
     }
 };
 
@@ -127,7 +133,27 @@ export class MetaHandlerService {
             model: modelStr
         };
 
-        const specialistResult: MetaResult = await config.agent.run(context);
+        let specialistResult: MetaResult;
+        try {
+            specialistResult = await config.agent.run(context);
+            if (!specialistResult || !specialistResult.ai_response) {
+                console.warn(`[MetaHandler] ⚠️ El especialista ${metaId} devolvió un resultado vacío.`);
+                specialistResult = {
+                    status: 'error',
+                    ai_response: 'Lo siento, no he podido procesar tu solicitud en este momento. Por favor, inténtalo de nuevo.',
+                    specialist: metaId,
+                    timestamp: new Date().toISOString()
+                };
+            }
+        } catch (err: any) {
+            console.error(`[MetaHandler] ❌ Error fatal en ejecución del especialista ${metaId}:`, err.message);
+            specialistResult = {
+                status: 'error',
+                ai_response: `⚠️ **Error Crítico:** Ha ocurrido un problema técnico al procesar el asistente (${err.message}). He notificado al equipo técnico.`,
+                specialist: metaId,
+                timestamp: new Date().toISOString()
+            };
+        }
 
         // ══════════════════════════════════════════════════════════════
         // 🔲 POST-PROCESADO: ARCHIVOS GENERADOS Y PERSISTENCIA AI
@@ -137,7 +163,8 @@ export class MetaHandlerService {
             // Mapear bucket por especialista
             const BUCKET_MAP: Record<string, string> = {
                 'template_filler': 'template-filler-files',
-                'grant_justification': 'grant-justification-files'
+                'grant_justification': 'grant-justification-files',
+                'cv_screening_rrhh': 'cv-screening-files'
             };
             const targetBucket = BUCKET_MAP[metaId] || process.env.SUPABASE_STORAGE_BUCKET || 'olawee-files';
 
