@@ -69,6 +69,8 @@ const SPECIALIST_LABELS = {
     'doc_comparator': { label: '📄 DocComparator', color: 'text-emerald-300' },
     'grant_justification': { label: '⚖️ Justificación Subv.', color: 'text-amber-300' },
     'template_filler': { label: '📝 TemplateFiller', color: 'text-blue-300' },
+    'cv_screening_rrhh': { label: '👤 CVScreener (RRHH)', color: 'text-purple-300' },
+    'linkedin_scouter': { label: '🔍 LinkedIn Scouter', color: 'text-cyan-300' },
 };
 
 
@@ -200,7 +202,9 @@ async function sendMessage() {
             if (data.status === 'success') {
                 appendMessage('ai', data.ai_response, data.context_used);
             } else {
-                appendMessage('error', data.message || data.error || 'Unknown error occurred.');
+                // Fallback robusto para mostrar el mensaje de error real si viene en ai_response
+                const errorMsg = data.ai_response || data.message || data.error || 'Unknown error occurred.';
+                appendMessage('error', errorMsg);
             }
 
         } catch (error) {
