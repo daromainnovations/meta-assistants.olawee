@@ -12,6 +12,7 @@ import { docComparatorAgent } from './specialists/doc-comparator/doc-comparator.
 import { grantJustificationAgent } from './specialists/grant-justification/grant_justification.agent';
 import { templateFillerAgent } from './specialists/template-filler/template-filler.agent';
 import { cvScreenerAgent } from './specialists/cv-screener/cv_screener.agent';
+import { linkedinScouterAgent } from './specialists/linkedin-scouter/linkedin-scouter.agent';
 
 /**
  * Configuración de cada especialista en el registro.
@@ -50,6 +51,11 @@ export const SPECIALIST_REGISTRY: Record<string, SpecialistConfig> = {
         label: '👤 Cribado de CVs (RRHH)',
         acceptsFiles: true,
         agent: cvScreenerAgent as any
+    },
+    'linkedin_scouter': {
+        label: '🔍 LinkedIn Scouter (Candidatos)',
+        acceptsFiles: true,
+        agent: linkedinScouterAgent as any
     }
 };
 
