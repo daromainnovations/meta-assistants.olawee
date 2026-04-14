@@ -13,6 +13,7 @@ import { grantJustificationAgent } from './specialists/grant-justification/grant
 import { templateFillerAgent } from './specialists/template-filler/template-filler.agent';
 import { cvScreenerAgent } from './specialists/cv-screener/cv_screener.agent';
 import { linkedinScouterAgent } from './specialists/linkedin-scouter/linkedin-scouter.agent';
+import { projectPrdArchitectAgent } from './specialists/project-prd-architect/project-prd-architect.agent';
 
 /**
  * Configuración de cada especialista en el registro.
@@ -56,6 +57,11 @@ export const SPECIALIST_REGISTRY: Record<string, SpecialistConfig> = {
         label: '🔍 LinkedIn Scouter (Candidatos)',
         acceptsFiles: true,
         agent: linkedinScouterAgent as any
+    },
+    'project_prd_architect': {
+        label: '🏗️ Arquitecto de Proyectos (PRD)',
+        acceptsFiles: true,
+        agent: projectPrdArchitectAgent as any
     }
 };
 
