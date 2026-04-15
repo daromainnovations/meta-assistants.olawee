@@ -21,69 +21,11 @@
             <p class="text-gray-400 text-lg">Central de Pruebas de Inteligencia Artificial</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-
-            <!-- Tarjeta Chat Normal -->
-            <a href="/chat/index.html"
-                class="group block relative rounded-2xl p-1 bg-gradient-to-br from-blue-500/50 to-indigo-600/50 hover:from-blue-400 hover:to-indigo-500 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl hover:shadow-indigo-500/30">
-                <div
-                    class="absolute rounded-xl -inset-px bg-gradient-to-br from-white/10 to-transparent pointer-events-none">
-                </div>
-                <div
-                    class="h-full bg-gray-900/90 rounded-xl p-8 flex flex-col items-center text-center relative overflow-hidden group-hover:bg-gray-900/80 transition-colors">
-
-                    <div
-                        class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mb-6 shadow-lg rotate-3 group-hover:rotate-6 transition-transform">
-                        <i class="fa-solid fa-bolt text-3xl text-white"></i>
-                    </div>
-
-                    <h2 class="text-2xl font-bold text-white mb-3">Modo Chat (LLM Rápido)</h2>
-                    <p class="text-gray-400 mb-6 leading-relaxed">
-                        Consultas directas a los modelos (GPT, Gemini, Claude). Ideal para preguntas rápidas y tareas
-                        sin agentes intermedios.
-                    </p>
-
-                    <div
-                        class="mt-auto inline-flex items-center gap-2 text-indigo-400 font-semibold group-hover:text-indigo-300">
-                        Entrar al Chat <i
-                            class="fa-solid fa-arrow-right transition-transform group-hover:translate-x-1"></i>
-                    </div>
-                </div>
-            </a>
-
-            <!-- Tarjeta Asistentes -->
-            <a href="/assistants/index.html"
-                class="group block relative rounded-2xl p-1 bg-gradient-to-br from-pink-500/50 to-rose-600/50 hover:from-pink-400 hover:to-rose-500 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl hover:shadow-rose-500/30">
-                <div
-                    class="absolute rounded-xl -inset-px bg-gradient-to-br from-white/10 to-transparent pointer-events-none">
-                </div>
-                <div
-                    class="h-full bg-gray-900/90 rounded-xl p-8 flex flex-col items-center text-center relative overflow-hidden group-hover:bg-gray-900/80 transition-colors">
-
-                    <div
-                        class="w-20 h-20 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center mb-6 shadow-lg -rotate-3 group-hover:-rotate-6 transition-transform">
-                        <i class="fa-solid fa-user-tie text-3xl text-white"></i>
-                    </div>
-
-                    <h2 class="text-2xl font-bold text-white mb-3">Modo Asistente IA</h2>
-                    <p class="text-gray-400 mb-6 leading-relaxed">
-                        Agentes avanzados con herramientas de navegación web, inyección de personalidad (System Prompt)
-                        y capacidad de raciocinio extendida.
-                    </p>
-
-                    <div
-                        class="mt-auto inline-flex items-center gap-2 text-rose-400 font-semibold group-hover:text-rose-300">
-                        Ir a Asistentes <i
-                            class="fa-solid fa-arrow-right transition-transform group-hover:translate-x-1"></i>
-                    </div>
-                </div>
-            </a>
-
-
+        <div class="grid grid-cols-1 gap-8">
 
             <!-- Tarjeta META Assistants -->
             <a href="/meta-assistants/index.html"
-                class="md:col-span-2 group block relative rounded-2xl p-1 bg-gradient-to-br from-pink-500/50 to-violet-600/50 hover:from-pink-400 hover:to-violet-500 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl hover:shadow-pink-500/30">
+                class="group block relative rounded-2xl p-1 bg-gradient-to-br from-pink-500/50 to-violet-600/50 hover:from-pink-400 hover:to-violet-500 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl hover:shadow-pink-500/30">
                 <div
                     class="absolute rounded-xl -inset-px bg-gradient-to-br from-white/10 to-transparent pointer-events-none">
                 </div>
@@ -103,9 +45,7 @@
 
                     <h2 class="text-2xl font-bold text-white mb-3">Lab Meta: Agentes Especializados</h2>
                     <p class="text-gray-400 mb-6 leading-relaxed max-w-2xl">
-                        Entorno de desarrollo y pruebas de nuevos agentes expertos. Actualmente disponible:
-                        <strong class="text-pink-300">🔍 InvoiceChecker</strong> — auditor automático de facturas vs
-                        Excel.
+                        Sistema centralizado de agentes expertos con webhooks dedicados. Actualmente incluye verificadores de facturas, cribado de currículums, comparadores de documentos y más.
                     </p>
 
                     <div
@@ -118,7 +58,7 @@
 
             <!-- Tarjeta ADMIN Panel -->
             <a href="/admin/index.html"
-                class="md:col-span-2 group block relative rounded-2xl p-1 bg-gradient-to-br from-gray-500/50 to-gray-600/50 hover:from-gray-400 hover:to-gray-500 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl hover:shadow-gray-500/30">
+                class="group block relative rounded-2xl p-1 bg-gradient-to-br from-gray-500/50 to-gray-600/50 hover:from-gray-400 hover:to-gray-500 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl hover:shadow-gray-500/30">
                 <div
                     class="absolute rounded-xl -inset-px bg-gradient-to-br from-white/10 to-transparent pointer-events-none">
                 </div>
@@ -132,8 +72,7 @@
 
                     <h2 class="text-2xl font-bold text-white mb-3">Panel de Administración (Logs)</h2>
                     <p class="text-gray-400 mb-6 leading-relaxed max-w-2xl">
-                        Visor global de ejecuciones N8N-style para auditar, depurar y monitorizar todo el tráfico
-                        entrante de los diferentes Asistentes y LLMs integrados.
+                        Visor global de ejecuciones para auditar, depurar y monitorizar todo el tráfico entrante de los diferentes Meta-Asistentes integrados.
                     </p>
 
                     <div

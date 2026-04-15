@@ -1,7 +1,5 @@
-import { chatHandlerService } from './chat/chat-handler.service';
 import { documentService } from './shared/document.service';
 import { titleGeneratorAutomation } from '../automations/title-generator.automation';
-import { assistantHandlerService } from './assistants/assistant-handler.service';
 import { metaHandlerService } from './meta-assistants/meta-handler.service';
 import { executionLoggerService } from '../executions/execution-logger.service';
 import { getPrisma } from './shared/prisma.service';
@@ -13,18 +11,13 @@ export enum WebhookType {
 
 /**
  * Obtiene el contexto previo guardado en la tabla de la base de datos
- * según el provider y sessionId aportados.
+ * según el provider (meta-assistant) y sessionId aportados.
  */
-async function getDocumentContext(provider: string, sessionId: string): Promise<string> {
+async function getDocumentContext(sessionId: string): Promise<string> {
     if (!sessionId) return '';
     const db = getPrisma();
     try {
-        let dbTable: any;
-        if (provider === 'assistant') dbTable = db.chats_agentes;
-        else if (provider === 'meta-assistant') dbTable = db.chatsmeta;
-        else dbTable = db.chatsllms;
-
-        const existing = await dbTable.findFirst({ 
+        const existing = await db.chatsmeta.findFirst({ 
             where: { session_id: sessionId },
             orderBy: { created_at: 'desc' }
         });
@@ -35,33 +28,28 @@ async function getDocumentContext(provider: string, sessionId: string): Promise<
 }
 
 /**
- * Persiste el systemprompt_doc en la tabla de chats correcta
- * para que esté disponible en futuras peticiones via qa-doc-injector.
+ * Persiste el systemprompt_doc en la tabla de chatsmeta
+ * para que esté disponible en futuras peticiones.
  */
-async function saveDocumentContext(provider: string, sessionId: string, docContext: string): Promise<void> {
+async function saveDocumentContext(sessionId: string, docContext: string): Promise<void> {
     if (!sessionId || !docContext) return;
     const db = getPrisma();
     try {
-        let dbTable: any;
-        if (provider === 'assistant') dbTable = db.chats_agentes;
-        else if (provider === 'meta-assistant') dbTable = db.chatsmeta;
-        else dbTable = db.chatsllms;
-
-        const existing = await dbTable.findFirst({ 
+        const existing = await db.chatsmeta.findFirst({ 
             where: { session_id: sessionId },
             orderBy: { created_at: 'desc' }
         });
         if (existing) {
-            await dbTable.update({
+            await db.chatsmeta.update({
                 where: { id: existing.id },
                 data: { systemprompt_doc: docContext, updated_at: new Date() }
             });
-            console.log(`[WebhookService] 💾 systemprompt_doc updated in DB for session "${sessionId}" [${provider}]`);
+            console.log(`[WebhookService] 💾 systemprompt_doc updated in DB for session "${sessionId}" [meta-assistant]`);
         } else {
-            await dbTable.create({
+            await db.chatsmeta.create({
                 data: { session_id: sessionId, systemprompt_doc: docContext, titulo: sessionId }
             });
-            console.log(`[WebhookService] 💾 systemprompt_doc created in DB for session "${sessionId}" [${provider}]`);
+            console.log(`[WebhookService] 💾 systemprompt_doc created in DB for session "${sessionId}" [meta-assistant]`);
         }
     } catch (err: any) {
         console.error(`[WebhookService] ❌ Error saving document context: ${err.message}`);
@@ -72,13 +60,13 @@ async function saveDocumentContext(provider: string, sessionId: string, docConte
 export class WebhookService {
 
     /**
-     * Procesa la solicitud entrante y determina si es un documento o texto.
-     * @param provider El servicio de LLM (ej: 'openai', 'gemini')
+     * Procesa la solicitud entrante exclusivamente para Meta-Asistentes.
+     * @param metaId El ID del especialista Meta
      * @param body El cuerpo de la solicitud (JSON o form-data fields)
      * @param files Archivos adjuntos si existen (array via Multer)
      */
-    async handleIncomingRequest(provider: string, body: any, files?: Express.Multer.File[]): Promise<any> {
-        console.log(`[WebhookService] Handling request for ${provider}`);
+    async handleIncomingRequest(metaId: string, body: any, files?: Express.Multer.File[]): Promise<any> {
+        console.log(`[WebhookService] Handling request for Meta Specialist: ${metaId}`);
 
         let parsedTools: number[] = [];
         if (body.tools) {
@@ -91,43 +79,34 @@ export class WebhookService {
             }
         }
 
-        // Simula el nodo 'Edit Fields' de n8n para mapear las variables
         const transformedBody = {
             chatInput: body.chatInput,
-            model: body.model,
+            model: body.model || 'gemini-2.0-flash',
             session_id: body.session_id,
-            id_assistant: body.id_assistant || body.assistant_id,
             systemprompt_doc: body.systemprompt_doc,
             systemPrompt: body.systemPrompt,
             history: body.history || [],
             tools: parsedTools,
-            meta_id: body.meta_id || null  // 🎯 ID del especialista Meta (si se provee)
+            meta_id: metaId
         };
 
-        // 👻 LANZAMIENTO DEL TRABAJO DE FONDO: Autonaming del Título ("Fire and Forget")
-        // Para meta-assistant usamos meta_id como identificador del especialista
+        // 👻 Autonaming del Título
         if (transformedBody.chatInput) {
-            const assistantId = provider === 'meta-assistant'
-                ? (transformedBody.meta_id || undefined)
-                : transformedBody.id_assistant;
-            titleGeneratorAutomation.generateTitleAsync(transformedBody.session_id, transformedBody.chatInput, provider, assistantId).catch((e: any) => {
+            titleGeneratorAutomation.generateTitleAsync(transformedBody.session_id, transformedBody.chatInput, 'meta-assistant', metaId).catch((e: any) => {
                 console.error("[TitleGenerator] Background error:", e);
             });
         }
 
         let finalDocumentContext = transformedBody.systemprompt_doc || '';
 
-        // ============================================================
-        // MEMORY RAG: Unified Document Processing
-        // ============================================================
+        // MEMORY RAG: Meta Document Processing
         if (!finalDocumentContext) {
-            // Load previous context from DB explicitly if not provided
-            finalDocumentContext = await getDocumentContext(provider, transformedBody.session_id);
+            finalDocumentContext = await getDocumentContext(transformedBody.session_id);
         }
 
         if (files && files.length > 0) {
             console.log(`[WebhookService] Detected ${files.length} BINARY files — routing through documentService`);
-            const docResult = await documentService.processDocuments(provider, files, transformedBody);
+            const docResult = await documentService.processDocuments('meta-assistant', files, transformedBody);
 
             if (docResult.status === 'success') {
                 if (finalDocumentContext) {
@@ -136,8 +115,7 @@ export class WebhookService {
                     finalDocumentContext = docResult.transcription;
                 }
 
-                // 💾 PERSISTIR en BD (fire-and-forget para no bloquear)
-                saveDocumentContext(provider, transformedBody.session_id, finalDocumentContext).catch((e: any) => {
+                saveDocumentContext(transformedBody.session_id, finalDocumentContext).catch((e: any) => {
                     console.error('[WebhookService] Error saving document context:', e.message);
                 });
             } else {
@@ -145,57 +123,25 @@ export class WebhookService {
             }
         }
 
-
-
-
-        // 3. Routing
+        // Routing exclusively to Meta Handler
         const startTime = Date.now();
         let result: any;
         try {
-            if (provider === 'assistant') {
-                if (!transformedBody.model || !transformedBody.systemPrompt) {
-                    result = { status: 'error', message: 'Se requiere model y systemPrompt en el payload para usar el sistema de Asistentes.' };
-                } else {
-                    console.log(`[WebhookService] Routing to ASSISTANT Handler (${transformedBody.model})`);
-                    result = await assistantHandlerService.processMessage(
-                        transformedBody.session_id, transformedBody.chatInput, transformedBody.systemPrompt,
-                        transformedBody.model, transformedBody.history, finalDocumentContext, transformedBody.tools
-                    );
-                }
+            console.log(`[WebhookService] Routing to META SPECIALIST: "${metaId}"`);
+            result = await metaHandlerService.processMessage(
+                transformedBody.session_id, transformedBody.chatInput, '',
+                transformedBody.model, transformedBody.history,
+                finalDocumentContext, transformedBody.tools, metaId, files
+            );
 
-            } else if (provider === 'meta-assistant') {
-                const metaId = transformedBody.meta_id;
-
-                if (!metaId) {
-                    result = { status: 'error', message: 'Se requiere un meta_id válido para acceder a los asistentes especialistas Meta.' };
-                } else {
-                    console.log(`[WebhookService] Routing to META SPECIALIST: "${metaId}"`);
-                    result = await metaHandlerService.processMessage(
-                        transformedBody.session_id, transformedBody.chatInput, '',
-                        transformedBody.model || 'gemini-2.0-flash', transformedBody.history,
-                        finalDocumentContext, transformedBody.tools, metaId, files
-                    );
-                }
-            } else {
-                console.log(`[WebhookService] Routing to AI Agent ${finalDocumentContext ? 'WITH' : 'WITHOUT'} context.`);
-                result = await chatHandlerService.processMessage(provider, transformedBody, finalDocumentContext);
-            }
-
-        // Log successful execution with duration
-            executionLoggerService.logExecution(provider, transformedBody, result, 'SUCCESS', Date.now() - startTime);
+            executionLoggerService.logExecution(`meta:${metaId}`, transformedBody, result, 'SUCCESS', Date.now() - startTime);
             return result;
 
         } catch (error: any) {
-            // Log failed execution with error trace
             const errorOutput = { status: 'error', message: error.message || error };
-            executionLoggerService.logExecution(provider, transformedBody, errorOutput, 'ERROR', Date.now() - startTime, error);
+            executionLoggerService.logExecution(`meta:${metaId}`, transformedBody, errorOutput, 'ERROR', Date.now() - startTime, error);
             throw error;
         }
-    }
-
-    private isDocumentMetadata(body: any): boolean {
-        // Implementar lógica personalizada si se espera documentos via JSON
-        return body && body.type === 'document_reference';
     }
 }
 

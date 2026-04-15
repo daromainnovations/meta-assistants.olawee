@@ -10,51 +10,8 @@ datasource db {
   schemas   = ["qan8n2.0", "pruebas_executions"]
 }
 
-model mensajesllms {
-  id         BigInt   @id(map: "prueba_mensajesllms_pkey1") @default(autoincrement())
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  message    Json?
-  session_id String?  @db.VarChar
-
-  @@schema("qan8n2.0")
-}
-
-model chatsllms {
-  id               BigInt    @id(map: "prueba_mensajesllms_pkey") @default(autoincrement())
-  created_at       DateTime  @default(now()) @db.Timestamptz(6)
-  session_id       String?   @db.VarChar
-  titulo           String?
-  systemprompt_doc String?
-  updated_at       DateTime? @db.Timestamptz(6)
-
-  @@schema("qan8n2.0")
-}
-
-model chats_agentes {
-  id               BigInt    @id(map: "prueba_chatsassistants_pkey") @default(autoincrement())
-  created_at       DateTime  @default(now()) @db.Timestamptz(6)
-  session_id       String?   @db.VarChar
-  id_assistant     String?   @db.VarChar
-  titulo           String?
-  systemprompt_doc String?
-  updated_at       DateTime? @db.Timestamptz(6)
-
-  @@schema("qan8n2.0")
-}
-
-model mensajes_agentes {
-  id         BigInt   @id(map: "prueba_mensajesassistants_pkey") @default(autoincrement())
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  message    Json?
-  session_id String?  @db.VarChar
-
-  @@schema("qan8n2.0")
-}
-
-
-
 // ============================================================
-// 🧪 META ASSISTANTS — Tablas de chat y mensajes
+// 🤖 META ASSISTANTS — Tablas de chat y mensajes
 // ============================================================
 model chatsmeta {
   id               BigInt    @id @default(autoincrement())
@@ -78,35 +35,12 @@ model mensajesmeta {
 }
 
 
-model exec_chats {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  provider   String
-  status     String
-  input      Json?
-  output     Json?
-
-  @@schema("pruebas_executions")
-}
-
-model exec_assistants {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  provider   String
-  status     String
-  input      Json?
-  output     Json?
-
-  @@schema("pruebas_executions")
-}
-
-
 // ============================================================
 // 🛡️ EXECUTIONS — Tabla Unificada de Control de Ejecuciones
 // ============================================================
-// Registra todas las ejecuciones del sistema:
-//   category  → 'llm' | 'assistant' | 'meta'
-//   provider  → modelo específico o meta_id del especialista
+// Registra todas las ejecuciones del sistema Meta:
+//   category  → 'meta'
+//   provider  → meta_id del especialista (ej. 'invoice_checker')
 //   environment → 'staging' | 'production'
 //   status    → 'SUCCESS' | 'ERROR'
 //   duration_ms → tiempo de respuesta en milisegundos
@@ -115,8 +49,8 @@ model exec_assistants {
 model executions {
   id          String   @id @default(uuid())
   created_at  DateTime @default(now()) @db.Timestamptz(6)
-  category    String   // 'llm' | 'assistant' | 'meta'
-  provider    String   // 'openai' | 'gemini' | 'assistant' | 'invoice_checker' | ...
+  category    String   // 'meta'
+  provider    String   // 'invoice_checker', 'cv_screening_rrhh', etc.
   environment String   // 'staging' | 'production'
   status      String   // 'SUCCESS' | 'ERROR'
   duration_ms Int?     // Tiempo de respuesta en ms
