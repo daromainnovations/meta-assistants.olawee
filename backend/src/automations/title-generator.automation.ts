@@ -1,4 +1,4 @@
-import { getPrisma } from '../services/shared/prisma.service';
+import prisma from '../models/prisma';
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 
@@ -12,7 +12,7 @@ export class TitleGeneratorAutomation {
         if (!sessionId || !firstMessage || firstMessage.trim() === '' || provider !== 'meta-assistant') return;
 
         try {
-            const db = getPrisma();
+            const db = prisma;
             const dbTable = db.chatsmeta;
 
             // 1. Buscar la sesión en base de datos

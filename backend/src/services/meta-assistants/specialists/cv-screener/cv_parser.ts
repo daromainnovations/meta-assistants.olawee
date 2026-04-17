@@ -4,6 +4,7 @@ import * as xlsx from 'xlsx';
 import * as mammoth from 'mammoth';
 import * as fs from 'fs';
 import * as path from 'path';
+import { GenericFile } from '../../../shared/document.service';
 
 /**
  * 🛠️ DEBUG LOGGER (Sobrevive a crashes del proceso)
@@ -45,7 +46,7 @@ export interface ExtractedCVData {
 /**
  * 👤 EXTRACTOR DE CURRICULUMS (OCR + IA)
  */
-export async function extractCVsFromFiles(files: Express.Multer.File[]): Promise<ExtractedCVData[]> {
+export async function extractCVsFromFiles(files: GenericFile[]): Promise<ExtractedCVData[]> {
   const results: ExtractedCVData[] = [];
   let visionCallCount = 0;
 
@@ -60,16 +61,22 @@ export async function extractCVsFromFiles(files: Express.Multer.File[]): Promise
           visionCallCount++;
 
           let profiles: CVProfile[] = [];
+          
+          // Obtener Buffer unificado
+          let buffer: Buffer;
+          if (file.buffer) {
+            buffer = file.buffer;
+          } else if (file.arrayBuffer) {
+            buffer = Buffer.from(await file.arrayBuffer());
+          } else {
+            throw new Error(`No se pudo obtener el buffer para ${file.originalname}`);
+          }
+
           if (filename.endsWith('.docx')) {
             debugLog(`Iniciando extracción Word: ${file.originalname}`);
             try {
-              if (!file.buffer) {
-                debugLog(`❌ ERROR: file.buffer es nulo para ${file.originalname}`);
-                throw new Error('Buffer de archivo no encontrado.');
-              }
-              
-              debugLog(`Llamando a Mammoth... (Buffer size: ${file.buffer.length})`);
-              const { value: text } = await mammoth.extractRawText({ buffer: file.buffer });
+              debugLog(`Llamando a Mammoth... (Buffer size: ${buffer.length})`);
+              const { value: text } = await mammoth.extractRawText({ buffer: buffer });
               debugLog(`Mammoth éxito. Texto obtenido (${text.length} chars).`);
               
               if (!text || text.trim().length === 0) {
@@ -87,7 +94,7 @@ export async function extractCVsFromFiles(files: Express.Multer.File[]): Promise
             }
           } else {
             debugLog(`Iniciando Vision para: ${file.originalname}`);
-            profiles = await extractCVViaGeminiVision(file);
+            profiles = await extractCVViaGeminiVision(file, buffer);
             debugLog(`Vision éxito. Perfiles extraídos: ${profiles.length}`);
           }
 
@@ -105,7 +112,7 @@ export async function extractCVsFromFiles(files: Express.Multer.File[]): Promise
 /**
  * 🤖 OCR ESPECIALIZADO EN CVs CON GEMINI VISION
  */
-async function extractCVViaGeminiVision(file: Express.Multer.File): Promise<CVProfile[]> {
+async function extractCVViaGeminiVision(file: GenericFile, buffer: Buffer): Promise<CVProfile[]> {
   const visionModel = new ChatGoogleGenerativeAI({
     model: 'gemini-2.0-flash',
     apiKey: process.env.GEMINI_API_KEY,
@@ -113,7 +120,7 @@ async function extractCVViaGeminiVision(file: Express.Multer.File): Promise<CVPr
   });
 
   const mimeType = file.originalname.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
-  const b64Data = file.buffer.toString('base64');
+  const b64Data = buffer.toString('base64');
 
   const message = new HumanMessage({
     content: [

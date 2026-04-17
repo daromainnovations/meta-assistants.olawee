@@ -202,8 +202,18 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
           };
         }
 
+        const excelBuffer = excelFile.buffer || (excelFile.arrayBuffer ? Buffer.from(await excelFile.arrayBuffer()) : null);
+        if (!excelBuffer) {
+           return {
+            status: 'success',
+            ai_response: '⚠️ Error: No se pudo leer el contenido del archivo Excel.',
+            specialist: metaId,
+            timestamp: new Date().toISOString()
+          };
+        }
+
         const editResult = editExcel(
-          Buffer.from(excelFile.buffer),
+          excelBuffer,
           null,
           [toolCall.args.registro],
           { mode: toolCall.args.insertionMode || 'append', value: toolCall.args.referenceValue }

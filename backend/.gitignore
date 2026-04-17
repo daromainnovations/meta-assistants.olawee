@@ -10,3 +10,9 @@ public/downloads/
 # Ignore logs
 logs/
 *.log
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+.DS_Store

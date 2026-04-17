@@ -2,6 +2,7 @@ import { metaMemoryService } from './meta-memory.service';
 import { titleGeneratorAutomation } from '../../automations/title-generator.automation';
 import { supabaseStorageService } from '../shared/storage/supabase-storage.service';
 import { MetaContext, MetaResult } from './meta.types';
+import { GenericFile } from '../shared/document.service';
 import { BaseMetaSpecialist } from './base-specialist';
 
 // ============================================================
@@ -80,7 +81,7 @@ export class MetaHandlerService {
         documentContext: string, // Contexto que viene del webhook (transcripción fresca)
         toolsArray: number[] = [],
         metaId?: string,
-        files?: Express.Multer.File[]
+        files?: GenericFile[]
     ): Promise<any> {
 
         if (!metaId) {

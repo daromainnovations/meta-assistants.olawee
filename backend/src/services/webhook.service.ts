@@ -1,8 +1,8 @@
-import { documentService } from './shared/document.service';
+import { documentService, GenericFile } from './shared/document.service';
 import { titleGeneratorAutomation } from '../automations/title-generator.automation';
 import { metaHandlerService } from './meta-assistants/meta-handler.service';
 import { executionLoggerService } from '../executions/execution-logger.service';
-import { getPrisma } from './shared/prisma.service';
+import prisma from '../models/prisma';
 
 export enum WebhookType {
     DOCUMENT = 'document',
@@ -15,7 +15,7 @@ export enum WebhookType {
  */
 async function getDocumentContext(sessionId: string): Promise<string> {
     if (!sessionId) return '';
-    const db = getPrisma();
+    const db = prisma;
     try {
         const existing = await db.chatsmeta.findFirst({ 
             where: { session_id: sessionId },
@@ -33,7 +33,7 @@ async function getDocumentContext(sessionId: string): Promise<string> {
  */
 async function saveDocumentContext(sessionId: string, docContext: string): Promise<void> {
     if (!sessionId || !docContext) return;
-    const db = getPrisma();
+    const db = prisma;
     try {
         const existing = await db.chatsmeta.findFirst({ 
             where: { session_id: sessionId },
@@ -63,9 +63,9 @@ export class WebhookService {
      * Procesa la solicitud entrante exclusivamente para Meta-Asistentes.
      * @param metaId El ID del especialista Meta
      * @param body El cuerpo de la solicitud (JSON o form-data fields)
-     * @param files Archivos adjuntos si existen (array via Multer)
+     * @param files Archivos adjuntos si existen
      */
-    async handleIncomingRequest(metaId: string, body: any, files?: Express.Multer.File[]): Promise<any> {
+    async handleIncomingRequest(metaId: string, body: any, files?: GenericFile[]): Promise<any> {
         console.log(`[WebhookService] Handling request for Meta Specialist: ${metaId}`);
 
         let parsedTools: number[] = [];
