@@ -1,5 +1,5 @@
-import { webhookController } from '../../../controllers/webhook.controller';
+import { assistantsController } from '../../../controllers/assistants.controller';
 
 export async function GET() {
-  return webhookController.healthCheck();
+  return assistantsController.healthCheck();
 }

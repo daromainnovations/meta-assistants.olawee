@@ -4,11 +4,6 @@ import { metaHandlerService } from './meta-assistants/meta-handler.service';
 import { executionLoggerService } from '../executions/execution-logger.service';
 import prisma from '../models/prisma';
 
-export enum WebhookType {
-    DOCUMENT = 'document',
-    TEXT = 'text'
-}
-
 /**
  * Obtiene el contexto previo guardado en la tabla de la base de datos
  * según el provider (meta-assistant) y sessionId aportados.
@@ -44,29 +39,29 @@ async function saveDocumentContext(sessionId: string, docContext: string): Promi
                 where: { id: existing.id },
                 data: { systemprompt_doc: docContext, updated_at: new Date() }
             });
-            console.log(`[WebhookService] 💾 systemprompt_doc updated in DB for session "${sessionId}" [meta-assistant]`);
+            console.log(`[AssistantsService] 💾 systemprompt_doc updated in DB for session "${sessionId}"`);
         } else {
             await db.chatsmeta.create({
                 data: { session_id: sessionId, systemprompt_doc: docContext, titulo: sessionId }
             });
-            console.log(`[WebhookService] 💾 systemprompt_doc created in DB for session "${sessionId}" [meta-assistant]`);
+            console.log(`[AssistantsService] 💾 systemprompt_doc created in DB for session "${sessionId}"`);
         }
     } catch (err: any) {
-        console.error(`[WebhookService] ❌ Error saving document context: ${err.message}`);
+        console.error(`[AssistantsService] ❌ Error saving document context: ${err.message}`);
     }
 }
 
 
-export class WebhookService {
+export class AssistantsService {
 
     /**
-     * Procesa la solicitud entrante exclusivamente para Meta-Asistentes.
+     * Procesa la ejecución de un Meta-Asistente.
      * @param metaId El ID del especialista Meta
      * @param body El cuerpo de la solicitud (JSON o form-data fields)
      * @param files Archivos adjuntos si existen
      */
-    async handleIncomingRequest(metaId: string, body: any, files?: GenericFile[]): Promise<any> {
-        console.log(`[WebhookService] Handling request for Meta Specialist: ${metaId}`);
+    async executeAssistant(metaId: string, body: any, files?: GenericFile[]): Promise<any> {
+        console.log(`[AssistantsService] 🚀 Executing Assistant: ${metaId}`);
 
         let parsedTools: number[] = [];
         if (body.tools) {
@@ -105,7 +100,7 @@ export class WebhookService {
         }
 
         if (files && files.length > 0) {
-            console.log(`[WebhookService] Detected ${files.length} BINARY files — routing through documentService`);
+            console.log(`[AssistantsService] Detected ${files.length} binary files — processing via documentService`);
             const docResult = await documentService.processDocuments('meta-assistant', files, transformedBody);
 
             if (docResult.status === 'success') {
@@ -116,7 +111,7 @@ export class WebhookService {
                 }
 
                 saveDocumentContext(transformedBody.session_id, finalDocumentContext).catch((e: any) => {
-                    console.error('[WebhookService] Error saving document context:', e.message);
+                    console.error('[AssistantsService] Error saving document context:', e.message);
                 });
             } else {
                 return docResult;
@@ -127,22 +122,22 @@ export class WebhookService {
         const startTime = Date.now();
         let result: any;
         try {
-            console.log(`[WebhookService] Routing to META SPECIALIST: "${metaId}"`);
+            console.log(`[AssistantsService] Routing to Specialist Engine: "${metaId}"`);
             result = await metaHandlerService.processMessage(
                 transformedBody.session_id, transformedBody.chatInput, '',
                 transformedBody.model, transformedBody.history,
                 finalDocumentContext, transformedBody.tools, metaId, files
             );
 
-            executionLoggerService.logExecution(`meta:${metaId}`, transformedBody, result, 'SUCCESS', Date.now() - startTime);
+            executionLoggerService.logExecution(`assistants:${metaId}`, transformedBody, result, 'SUCCESS', Date.now() - startTime);
             return result;
 
         } catch (error: any) {
             const errorOutput = { status: 'error', message: error.message || error };
-            executionLoggerService.logExecution(`meta:${metaId}`, transformedBody, errorOutput, 'ERROR', Date.now() - startTime, error);
+            executionLoggerService.logExecution(`assistants:${metaId}`, transformedBody, errorOutput, 'ERROR', Date.now() - startTime, error);
             throw error;
         }
     }
 }
 
-export const webhookService = new WebhookService();
+export const assistantsService = new AssistantsService();

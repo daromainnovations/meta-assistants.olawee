@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '../models/prisma';
-import { webhookService } from '../services/webhook.service';
+import { assistantsService } from '../services/assistants.service';
 
 /**
  * ExecutionController (MVC)
@@ -139,8 +139,8 @@ export class ExecutionController {
                 ? 'assistant' 
                 : (previous.category === 'meta' ? 'meta-assistant' : previous.provider);
 
-            const result = await webhookService.handleIncomingRequest(
-                providerToUse,
+            const result = await assistantsService.executeAssistant(
+                providerToUse as string,
                 previous.input,
                 [] // Los archivos se pierden en el retry
             );

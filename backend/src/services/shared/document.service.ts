@@ -89,7 +89,7 @@ export class DocumentService {
             docType: files.length > 1 ? 'MultiplesArchivos' : lastDocType,
             transcription: allNewContent,
             contentPreview: allNewContent.substring(0, 100) + '...',
-            savedToDb: false // Persistence is now completely handled by webhook.service.ts
+            savedToDb: false // Persistence is now completely handled by assistants.service.ts
         };
     }
 }

@@ -1,22 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { webhookService } from '../services/webhook.service';
+import { assistantsService } from '../services/assistants.service';
 
 /**
- * WebhookController
+ * AssistantsController
  * 
- * Capa de Controlador (MVC) que maneja las solicitudes HTTP, 
+ * Capa de Controlador (MVC) que maneja las solicitudes API de los Asistentes,
  * extrae datos y archivos, y delega la ejecución a la capa de Servicio.
  */
-export class WebhookController {
+export class AssistantsController {
     
     /**
-     * Procesa la petición de un Meta-Asistente especializado.
+     * Procesa la ejecución de un Meta-Asistente especializado vía API.
      */
-    async handleSpecialistRequest(req: NextRequest, metaId: string) {
+    async executeAssistant(req: NextRequest, metaId: string) {
         try {
-            console.log(`\n[Controller] 📦 Processing request for Meta Assistant [${metaId}]`);
+            console.log(`\n[API Controller] 🚀 Processing API request for Assistant: [${metaId}]`);
 
-            // Verificación de API Key (Podría moverse a un middleware centralizado)
+            // Verificación de API Key
             const apiKey = req.headers.get('x-api-key');
             if (apiKey !== process.env.WEBHOOK_API_KEY) {
                 return NextResponse.json({ status: 'error', message: 'Forbidden: Invalid API Key' }, { status: 403 });
@@ -43,13 +43,13 @@ export class WebhookController {
                 body = await req.json();
             }
 
-            // Delegar a la capa de servicio
-            const result = await webhookService.handleIncomingRequest(metaId, body, files as any);
+            // Delegar a la capa de servicio de asistentes
+            const result = await assistantsService.executeAssistant(metaId, body, files as any);
             
             return NextResponse.json(result);
 
         } catch (error: any) {
-            console.error(`[Controller] ❌ Error in handleSpecialistRequest [${metaId}]:`, error);
+            console.error(`[API Controller] ❌ Error in executeAssistant [${metaId}]:`, error);
             return NextResponse.json({ 
                 status: 'error', 
                 message: error.message || 'Internal Server Error' 
@@ -69,4 +69,4 @@ export class WebhookController {
     }
 }
 
-export const webhookController = new WebhookController();
+export const assistantsController = new AssistantsController();

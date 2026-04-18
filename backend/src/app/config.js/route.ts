@@ -6,8 +6,8 @@ import { NextResponse } from 'next/server';
  */
 export async function GET() {
   const isStaging = process.env.APP_ENV === 'staging';
-  // El prefijo ahora apunta a /api/webhook/ para coincidir con la nueva estructura
-  const prefix = isStaging ? '/api/webhook/QA' : '/api/webhook/';
+  // El prefijo ahora apunta a /api/v1/assistants/ para coincidir con la nueva estructura
+  const prefix = '/api/v1/assistants/';
   
   const content = `window.API_PREFIX = "${prefix}";`;
   
