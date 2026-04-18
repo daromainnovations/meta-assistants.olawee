@@ -47,11 +47,17 @@ export class InvoiceCheckerAgent extends BaseMetaSpecialist {
 
             // PDFs
             for (const f of categorized.pdfs) {
-                contentParts.push({ type: 'media', mimeType: 'application/pdf', data: f.buffer.toString('base64') });
+                const buffer = f.buffer || (f.arrayBuffer ? Buffer.from(await f.arrayBuffer()) : null);
+                if (buffer) {
+                    contentParts.push({ type: 'media', mimeType: 'application/pdf', data: buffer.toString('base64') });
+                }
             }
             // Imágenes
             for (const f of categorized.images) {
-                contentParts.push({ type: 'image_url', image_url: { url: `data:${f.mimetype};base64,${f.buffer.toString('base64')}` } });
+                const buffer = f.buffer || (f.arrayBuffer ? Buffer.from(await f.arrayBuffer()) : null);
+                if (buffer) {
+                    contentParts.push({ type: 'image_url', image_url: { url: `data:${f.mimetype};base64,${buffer.toString('base64')}` } });
+                }
             }
 
             const messages = [

@@ -68,12 +68,17 @@ export class TemplateFillerAgent extends BaseMetaSpecialist {
             
             let structureList = "";
             if (isInitialAnalysis) {
-                if (templates[0].originalname.endsWith('.docx')) {
-                    const structure = await getDocxStructure(templates[0].buffer);
-                    structureList = structure.map((b: any) => `[${b.id}] ${b.text.substring(0, 100)}${b.text.length > 100 ? '...' : ''}`).join('\n');
-                } else if (templates[0].originalname.endsWith('.xlsx')) {
-                    const structure = await getXlsxStructure(templates[0].buffer);
-                    structureList = structure.map((b: any) => `[${b.id}] ${b.text}`).join('\n');
+                const template = templates[0];
+                const buffer = template.buffer || (template.arrayBuffer ? Buffer.from(await template.arrayBuffer()) : null);
+                
+                if (buffer) {
+                    if (template.originalname.endsWith('.docx')) {
+                        const structure = await getDocxStructure(buffer);
+                        structureList = structure.map((b: any) => `[${b.id}] ${b.text.substring(0, 100)}${b.text.length > 100 ? '...' : ''}`).join('\n');
+                    } else if (template.originalname.endsWith('.xlsx')) {
+                        const structure = await getXlsxStructure(buffer);
+                        structureList = structure.map((b: any) => `[${b.id}] ${b.text}`).join('\n');
+                    }
                 }
             }
 
@@ -124,9 +129,12 @@ export class TemplateFillerAgent extends BaseMetaSpecialist {
                 console.info(`[TemplateFiller] 🚀 Ejecutando llenado para: ${templateFile.originalname}`);
                 console.info(`[TemplateFiller] 📦 Datos: ${JSON.stringify(toolCall.args.data)}`);
 
-                const buffer = templateFile.originalname.toLowerCase().endsWith('.xlsx')
-                    ? await fillXlsxTemplate(templateFile.buffer, toolCall.args.data)
-                    : await fillDocxTemplate(templateFile.buffer, toolCall.args.data);
+                const templateBuffer = templateFile.buffer || (templateFile.arrayBuffer ? Buffer.from(await templateFile.arrayBuffer()) : null);
+                if (!templateBuffer) throw new Error("No se pudo obtener el buffer de la plantilla.");
+
+                const processedBuffer = templateFile.originalname.toLowerCase().endsWith('.xlsx')
+                    ? await fillXlsxTemplate(templateBuffer, toolCall.args.data)
+                    : await fillDocxTemplate(templateBuffer, toolCall.args.data);
 
                 const timestamp = new Date().getTime();
                 const newFilename = `rellenado_${timestamp}_${templateFile.originalname.replace(/\s+/g, '_')}`;
@@ -138,7 +146,7 @@ export class TemplateFillerAgent extends BaseMetaSpecialist {
                     generated_files: [
                         {
                             filename: newFilename,
-                            buffer,
+                            buffer: processedBuffer,
                             mimetype: templateFile.mimetype
                         }
                     ],

@@ -1,4 +1,5 @@
 import { BaseMessage } from "@langchain/core/messages";
+import { GenericFile } from '../shared/document.service';
 
 /**
  * Contexto unificado que el Handler le entrega a CUALQUIER meta-asistente.
@@ -8,7 +9,7 @@ export interface MetaContext {
     sessionId: string;
     metaId: string;
     userMessage: string;
-    files: Express.Multer.File[];
+    files: GenericFile[];
     docContext: string;           // Memoria de Documentos (systemprompt_doc)
     history: BaseMessage[];       // Memoria de Conversación
     model: string;                // Modelo Gemini configurado

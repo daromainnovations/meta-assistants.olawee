@@ -42,10 +42,16 @@ export class DocComparatorAgent extends BaseMetaSpecialist {
 
             // Añadir PDFs y Imágenes inline (Gemini Pro Vision / 2.0 Flash)
             for (const pdf of categorized.pdfs) {
-                contentParts.push({ type: 'media', mimeType: 'application/pdf', data: pdf.buffer.toString('base64') });
+                const buffer = pdf.buffer || (pdf.arrayBuffer ? Buffer.from(await pdf.arrayBuffer()) : null);
+                if (buffer) {
+                    contentParts.push({ type: 'media', mimeType: 'application/pdf', data: buffer.toString('base64') });
+                }
             }
             for (const img of categorized.images) {
-                contentParts.push({ type: 'image_url', image_url: { url: `data:${img.mimetype};base64,${img.buffer.toString('base64')}` } });
+                const buffer = img.buffer || (img.arrayBuffer ? Buffer.from(await img.arrayBuffer()) : null);
+                if (buffer) {
+                    contentParts.push({ type: 'image_url', image_url: { url: `data:${img.mimetype};base64,${buffer.toString('base64')}` } });
+                }
             }
 
             const messages = [

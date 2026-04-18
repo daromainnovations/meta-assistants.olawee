@@ -1,6 +1,7 @@
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { HumanMessage } from '@langchain/core/messages';
 import * as xlsx from 'xlsx';
+import { GenericFile } from '../../../shared/document.service';
 
 export interface ExtractedData {
   pdfTexts: { filename: string; text: string; structured?: InvoiceData }[];
@@ -22,13 +23,20 @@ export interface InvoiceData {
  * 📄 EXTRACTOR PRINCIPAL DE ARCHIVOS
  * Usa Gemini Vision para PDFs e imágenes (OCR de alta fidelidad).
  */
-export async function extractDataFromFiles(files: Express.Multer.File[]): Promise<ExtractedData> {
+export async function extractDataFromFiles(files: GenericFile[]): Promise<ExtractedData> {
   const result: ExtractedData = { pdfTexts: [], excelData: [] };
 
   let visionCallCount = 0;
 
   for (const file of files) {
     const filename = file.originalname.toLowerCase();
+    
+    // Obtener Buffer unificado
+    const buffer = file.buffer || (file.arrayBuffer ? Buffer.from(await file.arrayBuffer()) : null);
+    if (!buffer) {
+        console.warn(`[DocumentParser] ⚠️ No se pudo obtener el buffer para ${file.originalname}`);
+        continue;
+    }
 
     // === PDF / Imágenes: OCR con Gemini Vision ===
     if (filename.endsWith('.pdf') || filename.endsWith('.jpg') || filename.endsWith('.jpeg') || filename.endsWith('.png')) {
@@ -40,7 +48,7 @@ export async function extractDataFromFiles(files: Express.Multer.File[]): Promis
         visionCallCount++;
 
         console.log(`[DocumentParser] 🔍 [${visionCallCount}] Extrayendo con Gemini Vision: ${file.originalname}`);
-        const { text, structured } = await extractViaGeminiVision(file);
+        const { text, structured } = await extractViaGeminiVision(file, buffer);
         result.pdfTexts.push({ filename: file.originalname, text, structured });
         console.log(`[DocumentParser] ✅ Extraído: ${file.originalname} | Factura: ${structured?.numFactura || 'N/A'} | Total: ${structured?.total || 'N/A'}`);
       } catch (error: any) {
@@ -51,7 +59,7 @@ export async function extractDataFromFiles(files: Express.Multer.File[]): Promis
     // === Excel ===
     else if (filename.endsWith('.xlsx') || filename.endsWith('.xls')) {
       try {
-        const workbook = xlsx.read(file.buffer, { type: 'buffer' });
+        const workbook = xlsx.read(buffer, { type: 'buffer' });
         const sheetsData: { [sheetName: string]: any[] } = {};
         for (const sheetName of workbook.SheetNames) {
           const sheet = workbook.Sheets[sheetName];
@@ -71,7 +79,7 @@ export async function extractDataFromFiles(files: Express.Multer.File[]): Promis
  * 🤖 OCR CON GEMINI VISION (Alta Fidelidad)
  * Extrae texto Y estructura datos de facturas en JSON.
  */
-async function extractViaGeminiVision(file: Express.Multer.File): Promise<{ text: string; structured: InvoiceData }> {
+async function extractViaGeminiVision(file: GenericFile, buffer: Buffer): Promise<{ text: string; structured: InvoiceData }> {
   const visionModel = new ChatGoogleGenerativeAI({
     model: 'gemini-2.0-flash',
     apiKey: process.env.GEMINI_API_KEY,
@@ -79,7 +87,7 @@ async function extractViaGeminiVision(file: Express.Multer.File): Promise<{ text
   });
 
   const mimeType = file.originalname.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
-  const b64Data = file.buffer.toString('base64');
+  const b64Data = buffer.toString('base64');
 
   const message = new HumanMessage({
     content: [

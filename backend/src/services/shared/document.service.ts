@@ -1,6 +1,6 @@
 import { documentAnalysisService } from './document-analysis.service';
 
-import { getPrisma } from './prisma.service';
+
 
 export interface TranscriptionResult {
     status: string;
@@ -14,18 +14,21 @@ export interface TranscriptionResult {
     savedToDb: boolean;
 }
 
+export interface GenericFile {
+    originalname: string;
+    mimetype: string;
+    size: number;
+    buffer?: Buffer; // Para compatibilidad con legacy/multer
+    arrayBuffer?: () => Promise<ArrayBuffer>; // Para Web API File
+}
+
 export class DocumentService {
 
     /**
-     * Procesa un documento recibido:
-     * 1. Identifica el tipo de archivo y lo transcribe.
-     * 2. Gestiona el guardado en la tabla 'chatsllms'.
-     *    - Busca por 'session_id'.
-     *    - Si 'systemprompt_doc' está vacío, inserta la transcripción.
-     *    - Si ya tiene contenido, concatena el antiguo con el nuevo.
-     * 3. Devuelve la transcripción para ser usada como contexto.
+     * Procesa documentos recibidos. Soporta tanto archivos de Multer (legacy)
+     * como archivos de la Web API (Next.js / NextRequest).
      */
-    async processDocuments(provider: string, files: Express.Multer.File[], meta: any): Promise<TranscriptionResult> {
+    async processDocuments(provider: string, files: GenericFile[], meta: any): Promise<TranscriptionResult> {
         console.log(`[DocumentService] Processing ${files.length} documents for ${provider}`);
 
         let allNewContent = '';
@@ -37,22 +40,32 @@ export class DocumentService {
             let docType = 'unknown';
 
             try {
+                // Obtener Buffer independientemente del origen (Multer o Web API)
+                let buffer: Buffer;
+                if (file.buffer) {
+                    buffer = file.buffer;
+                } else if (file.arrayBuffer) {
+                    buffer = Buffer.from(await file.arrayBuffer());
+                } else {
+                    throw new Error('No buffer or arrayBuffer found in file object');
+                }
+
                 // 1. Transcribir según tipo de archivo
                 if (file.mimetype === 'application/pdf') {
                     docType = 'PDF';
-                    transcription = await documentAnalysisService.transcribePDF(file.buffer);
+                    transcription = await documentAnalysisService.transcribePDF(buffer);
                 } else if (file.mimetype.includes('spreadsheet') || file.mimetype.includes('excel') || file.originalname.endsWith('.xlsx')) {
                     docType = 'Excel';
-                    transcription = await documentAnalysisService.transcribeExcel(file.buffer);
+                    transcription = await documentAnalysisService.transcribeExcel(buffer);
                 } else if (file.originalname.endsWith('.docx') || file.originalname.endsWith('.doc')) {
                     docType = 'DOC';
-                    transcription = await documentAnalysisService.transcribeDoc(file.buffer);
+                    transcription = await documentAnalysisService.transcribeDoc(buffer);
                 } else if (file.mimetype.startsWith('image/')) {
                     docType = 'Imagen';
-                    transcription = await documentAnalysisService.describeImageWithGemini(file.buffer, file.mimetype);
+                    transcription = await documentAnalysisService.describeImageWithGemini(buffer, file.mimetype);
                 } else {
                     docType = 'Texto';
-                    transcription = file.buffer.toString('utf-8');
+                    transcription = buffer.toString('utf-8');
                 }
 
                 // Concatenar el contenido formateado de todos los archivos procesados en esta petición
@@ -76,7 +89,7 @@ export class DocumentService {
             docType: files.length > 1 ? 'MultiplesArchivos' : lastDocType,
             transcription: allNewContent,
             contentPreview: allNewContent.substring(0, 100) + '...',
-            savedToDb: false // Persistence is now completely handled by webhook.service.ts
+            savedToDb: false // Persistence is now completely handled by assistants.service.ts
         };
     }
 }

@@ -1,4 +1,4 @@
-import { getPrisma } from '../services/shared/prisma.service';
+import prisma from '../models/prisma';
 
 // ============================================================
 // 🛡️ EXECUTION LOGGER — Servicio Unificado de Registro
@@ -10,7 +10,7 @@ import { getPrisma } from '../services/shared/prisma.service';
 //   'meta'      → meta-assistants especializados
 // ============================================================
 
-const db = getPrisma();
+const db = prisma;
 const environment = process.env.APP_ENV === 'staging' ? 'staging' : 'production';
 
 // Determina la categoría a partir del provider
@@ -55,7 +55,7 @@ export class ExecutionLoggerService {
                     duration_ms: durationMs ?? null,
                     input: inputPayload || {},
                     output: outputData || {},
-                    error: error ? { message: error.message, stack: error.stack } : null
+                    error: error ? { message: error.message, stack: error.stack } : undefined
                 }
             });
 

@@ -1,5 +1,6 @@
 import { BaseMessage, HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
-import { getPrisma } from '../shared/prisma.service';
+import prisma from '../../models/prisma';
+import { GenericFile } from '../shared/document.service';
 
 /**
  * ============================================================
@@ -11,10 +12,10 @@ import { getPrisma } from '../shared/prisma.service';
 export class MetaMemoryService {
 
     // 🎯 Caché temporal en memoria para buffers de archivos e hilos (aislamiento por Meta ID)
-    private sessionFilesCache = new Map<string, Express.Multer.File[]>();
+    private sessionFilesCache = new Map<string, GenericFile[]>();
     private sessionContextCache = new Map<string, string>();
     private sessionMetadataCache = new Map<string, any>(); // 🎒 Nueva mochila de metadatos (JSON)
-    private sessionTimeouts = new Map<string, NodeJS.Timeout>();
+    private sessionTimeouts = new Map<string, any>();
 
     private readonly SESSION_TTL = 30 * 60 * 1000; // 30 minutos
 
@@ -46,7 +47,7 @@ export class MetaMemoryService {
      * Recupera el historial de chat AISLADO por Meta ID
      */
     async getMetaChatHistory(sessionId: string, metaId: string): Promise<BaseMessage[]> {
-        const db = getPrisma();
+        const db = prisma;
         console.log(`[MetaMemory] Loading isolated chat history for: ${sessionId} (Specialist: ${metaId})`);
 
         try {
@@ -116,7 +117,7 @@ export class MetaMemoryService {
      * Recupera el contexto AISLADO desde la tabla chatsmeta
      */
     async getDocumentContext(sessionId: string, metaId: string): Promise<string> {
-        const db = getPrisma();
+        const db = prisma;
         try {
             const row = await db.chatsmeta.findFirst({ 
                 where: { 
@@ -138,7 +139,7 @@ export class MetaMemoryService {
      * Guarda un mensaje de la conversación Meta AISLADO por Meta ID
      */
     async saveMessage(sessionId: string, metaId: string, type: 'human' | 'ai' | 'system', content: string) {
-        const db = getPrisma();
+        const db = prisma;
         try {
             await db.mensajesmeta.create({
                 data: {
@@ -160,7 +161,7 @@ export class MetaMemoryService {
     /**
      * Guarda los archivos subidos en una caché temporal AISLADA
      */
-    saveSessionFiles(sessionId: string, metaId: string, files: Express.Multer.File[]) {
+    saveSessionFiles(sessionId: string, metaId: string, files: GenericFile[]) {
         if (!files || files.length === 0) return;
         
         const key = this.getCacheKey(sessionId, metaId);
@@ -176,7 +177,7 @@ export class MetaMemoryService {
     /**
      * Recupera los archivos guardados para esta sesión aislada
      */
-    getSessionFiles(sessionId: string, metaId: string): Express.Multer.File[] {
+    getSessionFiles(sessionId: string, metaId: string): GenericFile[] {
         const key = this.getCacheKey(sessionId, metaId);
         return this.sessionFilesCache.get(key) || [];
     }
