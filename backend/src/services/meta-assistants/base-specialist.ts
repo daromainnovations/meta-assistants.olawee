@@ -1,4 +1,5 @@
 import { MetaContext, MetaResult } from './meta.types';
+import { GenericFile } from '../shared/document.service';
 
 /**
  * 🔲 BASE META SPECIALIST
@@ -40,7 +41,7 @@ export abstract class BaseMetaSpecialist {
     /**
      * Utilidad: Clasifica archivos por tipo para facilitar el procesamiento.
      */
-    protected categorizeFiles(files: Express.Multer.File[]) {
+    protected categorizeFiles(files: GenericFile[]) {
         return {
             excels: files.filter(f => f.originalname.toLowerCase().endsWith('.xlsx') || f.originalname.toLowerCase().endsWith('.xls') || f.originalname.toLowerCase().endsWith('.csv')),
             pdfs: files.filter(f => f.mimetype === 'application/pdf' || f.originalname.toLowerCase().endsWith('.pdf')),

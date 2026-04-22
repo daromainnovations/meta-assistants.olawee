@@ -1,4 +1,4 @@
-import { getPrisma } from '../services/shared/prisma.service';
+import prisma from '../models/prisma';
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 
@@ -6,26 +6,14 @@ export class TitleGeneratorAutomation {
     /**
      * Tarea en segundo plano ("Fire and Forget") que genera un título
      * para la conversación si aún no lo tiene.
-     * Ahora soporta los modos: LLM, Assistant, Meta.
+     * Exclusivo para Meta-Asistentes.
      */
-    async generateTitleAsync(sessionId: string, firstMessage: string, provider: string, idAssistant?: string) {
-        if (!sessionId || !firstMessage || firstMessage.trim() === '') return;
+    async generateTitleAsync(sessionId: string, firstMessage: string, provider: string, metaId?: string) {
+        if (!sessionId || !firstMessage || firstMessage.trim() === '' || provider !== 'meta-assistant') return;
 
         try {
-            const db = getPrisma();
-
-            // ============================================================
-            // Seleccionar la tabla correcta según el provider
-            // ============================================================
-            let dbTable: any;
-            if (provider === 'assistant') {
-                dbTable = db.chats_agentes;
-            } else if (provider === 'meta-assistant') {
-                dbTable = db.chatsmeta;
-            } else {
-                // LLMs: gemini, openai, anthropic, mistral, deepseek
-                dbTable = db.chatsllms;
-            }
+            const db = prisma;
+            const dbTable = db.chatsmeta;
 
             // 1. Buscar la sesión en base de datos
             const chatRow = await dbTable.findFirst({
@@ -38,9 +26,9 @@ export class TitleGeneratorAutomation {
                 return;
             }
 
-            console.log(`[TitleGeneratorJob] 🚀 Generating title for session '${sessionId}' [${provider}]...`);
+            console.log(`[TitleGeneratorJob] 🚀 Generating title for session '${sessionId}' [meta-assistant]...`);
 
-            // 2. Modelo rápido y barato para generar el título
+            // 2. Modelo rápido para generar el título
             const model = new ChatGoogleGenerativeAI({
                 apiKey: process.env.GEMINI_API_KEY,
                 model: 'gemini-2.0-flash',
@@ -55,34 +43,30 @@ export class TitleGeneratorAutomation {
             const response = await model.invoke(messages);
             let newTitle = (response.content as string).replace(/["'\n*#]/g, '').trim();
 
-            console.log(`[TitleGeneratorJob] ✨ Auto-title: "${newTitle}" [${provider}]`);
+            console.log(`[TitleGeneratorJob] ✨ Auto-title: "${newTitle}" [meta-assistant]`);
 
-            // RE-EVALUAMOS el estado en BBDD después de la espera del LLM
-            // para evitar duplicar entradas por concurrencia (ej. webhook guardando el Document Context a la vez)
             const latestChatRow = await dbTable.findFirst({
                 where: { session_id: sessionId }
             });
 
-            // 3. Crear o actualizar el registro de chat en la tabla correcta
+            // 3. Crear o actualizar el registro
             if (latestChatRow) {
-                const updateData: any = { titulo: newTitle, updated_at: new Date() };
-                if (provider === 'assistant' && idAssistant) updateData.id_assistant = idAssistant;
-
-                if (provider === 'meta-assistant' && idAssistant) updateData.meta_id = idAssistant;
-                await dbTable.update({ where: { id: latestChatRow.id }, data: updateData });
+                await dbTable.update({ 
+                    where: { id: latestChatRow.id }, 
+                    data: { titulo: newTitle, meta_id: metaId, updated_at: new Date() } 
+                });
             } else {
-                const createData: any = {
-                    session_id: sessionId,
-                    titulo: newTitle,
-                    systemprompt_doc: ''
-                };
-                if (provider === 'assistant' && idAssistant) createData.id_assistant = idAssistant;
-
-                if (provider === 'meta-assistant' && idAssistant) createData.meta_id = idAssistant;
-                await dbTable.create({ data: createData });
+                await dbTable.create({
+                    data: {
+                        session_id: sessionId,
+                        titulo: newTitle,
+                        meta_id: metaId,
+                        systemprompt_doc: ''
+                    }
+                });
             }
 
-            console.log(`[TitleGeneratorJob] ✅ Title saved for session '${sessionId}' [${provider}].`);
+            console.log(`[TitleGeneratorJob] ✅ Title saved for session '${sessionId}' [meta-assistant].`);
 
         } catch (error: any) {
             console.error(`[TitleGeneratorJob] ⚠️ Error generating title: ${error.message}`);

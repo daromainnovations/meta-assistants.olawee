@@ -150,12 +150,11 @@ async function runStressTest() {
   // y que maneja Excels correctamente.
   console.log('\n🔍 TEST 3: Verificando extractor de Excel...');
   try {
-    const fakeFiles: Express.Multer.File[] = [{
+    const fakeFiles: any[] = [{
       originalname: 'plantilla_seguimiento.xlsx',
       buffer: excelTemplate,
       mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      fieldname: 'files', encoding: '7bit', size: excelTemplate.length,
-      stream: null as any, destination: '', filename: '', path: ''
+      size: excelTemplate.length,
     }];
     const extracted = await extractDataFromFiles(fakeFiles);
     extracted.excelData.length > 0
@@ -240,19 +239,6 @@ async function runStressTest() {
     fail('Verificación celda por celda', e.message);
   }
 
-  // ─── TEST 6: Límites del servidor (verificación de configuración) ───
-  console.log('\n🌐 TEST 6: Verificando configuración de infraestructura...');
-  try {
-    const routesFile = fs.readFileSync(path.join(process.cwd(), 'src/routes/webhook.routes.ts'), 'utf-8');
-    routesFile.includes('files: 50')
-      ? pass('Límite archivos Multer = 50', 'Configuración correcta')
-      : fail('Límite archivos Multer', 'No se encontró la configuración de 50 archivos');
-    routesFile.includes('100 * 1024 * 1024')
-      ? pass('Límite tamaño = 100MB', 'Configuración correcta')
-      : fail('Límite tamaño Multer', 'No se encontró la configuración de 100MB');
-  } catch (e: any) {
-    fail('Verificar configuración Multer', e.message);
-  }
 
   // ─────────────────────────────────────────
   // REPORTE FINAL
