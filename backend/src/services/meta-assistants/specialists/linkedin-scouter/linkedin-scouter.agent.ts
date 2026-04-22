@@ -28,7 +28,7 @@ export class LinkedInScouterAgent extends BaseMetaSpecialist {
         const model = new ChatGoogleGenerativeAI({
             apiKey: process.env.GEMINI_API_KEY,
             model: modelName || 'gemini-2.0-flash',
-            temperature: 0,
+            temperature: 0.2,
             maxOutputTokens: 8192
         });
 
@@ -79,15 +79,18 @@ export class LinkedInScouterAgent extends BaseMetaSpecialist {
             // 4. Ranking de perfiles con Gemini
             console.log(`[LinkedInScouter] Ranking de ${results.length} resultados...`);
             yield { type: 'status', message: `Se han encontrado ${results.length} candidatos potenciales. Evaluando perfiles e idoneidad...` };
-            const rankingPrompt = `Dados los siguientes resultados de búsqueda de LinkedIn y la oferta original, analiza EXACTAMENTE LOS ${results.length} PERFILES y ordénalos por relevancia.
+            const rankingPrompt = `Dados los siguientes resultados brutos de búsqueda de LinkedIn, compáralos con la oferta original y selecciona a los candidatos más relevantes.
             
             [OFERTA]: ${fullJD}
             [RESULTADOS]: ${JSON.stringify(results)}
             
-            REGLA ESTRICTA: Genera un informe detallado con una tabla que incluya OBLIGATORIAMENTE A LOS ${results.length} CANDIDATOS. ¡No omitas ninguno, no abrevies la tabla!
-            Columnas de la tabla: Nombre/Headline | Match % | Enlace.
-            También añade un breve párrafo explicando por qué el Top 1 es el mejor candidato.
-            La respuesta debe estar en Markdown.`;
+            INSTRUCCIONES DE DEPURACIÓN:
+            1. Examina el JSON de RESULTADOS. Algunos pueden ser páginas de error de LinkedIn, empresas, o "basura" del buscador. Ignóralos por completo.
+            2. Filtra estrictamente y quédate solo con personas (candidatos reales).
+            3. Genera un informe detallado con una tabla Markdown de los candidatos válidos. Columnas: Nombre/Headline | Match % | Enlace.
+            4. Añade un breve párrafo explicando por qué el Top 1 es el mejor candidato.
+            
+            NO inventes texto para rellenar, sé directo y objetivo.`;
 
             const finalResponse = await model.invoke([
                 new SystemMessage(SYSTEM_PROMPT),
