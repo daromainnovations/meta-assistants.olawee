@@ -16,7 +16,11 @@ export abstract class BaseMetaSpecialist {
         console.log(`[${this.getName()}] 🚀 Inyectando Bases (Memory + Docs + Files)`);
 
         try {
-            return yield* this.execute(context);
+            const finalResult = yield* this.execute(context);
+            // IMPORTANTE: Un 'for await' ignora el 'return' final de un generador.
+            // Para que el frontend y el orquestador lo capturen, debemos emitirlo explícitamente como 'done'.
+            yield { type: 'done', result: finalResult };
+            return finalResult;
         } catch (error: any) {
             console.error(`[${this.getName()}] ❌ Execution Error:`, error.message);
             const errResult: MetaResult = {
