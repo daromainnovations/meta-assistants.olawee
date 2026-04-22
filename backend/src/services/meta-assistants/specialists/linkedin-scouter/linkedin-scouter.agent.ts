@@ -79,12 +79,13 @@ export class LinkedInScouterAgent extends BaseMetaSpecialist {
             // 4. Ranking de perfiles con Gemini
             console.log(`[LinkedInScouter] Ranking de ${results.length} resultados...`);
             yield { type: 'status', message: `Se han encontrado ${results.length} candidatos potenciales. Evaluando perfiles e idoneidad...` };
-            const rankingPrompt = `Dados los siguientes resultados de búsqueda de LinkedIn y la oferta original, selecciona los 10 mejores y ordénalos por relevancia.
+            const rankingPrompt = `Dados los siguientes resultados de búsqueda de LinkedIn y la oferta original, analiza EXACTAMENTE LOS ${results.length} PERFILES y ordénalos por relevancia.
             
             [OFERTA]: ${fullJD}
             [RESULTADOS]: ${JSON.stringify(results)}
             
-            Genera un informe detallado con una tabla que incluya: Nombre/Headline, Match %, y Enlace.
+            REGLA ESTRICTA: Genera un informe detallado con una tabla que incluya OBLIGATORIAMENTE A LOS ${results.length} CANDIDATOS. ¡No omitas ninguno, no abrevies la tabla!
+            Columnas de la tabla: Nombre/Headline | Match % | Enlace.
             También añade un breve párrafo explicando por qué el Top 1 es el mejor candidato.
             La respuesta debe estar en Markdown.`;
 
