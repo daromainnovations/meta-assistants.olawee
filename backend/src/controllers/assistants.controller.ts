@@ -30,14 +30,20 @@ export class AssistantsController {
             if (contentType.includes('multipart/form-data')) {
                 const formData = await req.formData();
 
-                // Extraer todos los campos que no sean archivos
-                formData.forEach((value, key) => {
+                // Extraer todos los campos
+                for (const [key, value] of formData.entries()) {
                     if (value instanceof File) {
-                        files.push(value);
+                        const buffer = Buffer.from(await value.arrayBuffer());
+                        files.push({
+                            originalname: value.name,
+                            mimetype: value.type,
+                            size: value.size,
+                            buffer: buffer
+                        });
                     } else {
                         body[key] = value;
                     }
-                });
+                }
             } else {
                 // Manejo de JSON directo
                 body = await req.json();
