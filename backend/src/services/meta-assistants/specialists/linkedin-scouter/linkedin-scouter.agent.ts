@@ -32,7 +32,8 @@ export class LinkedInScouterAgent extends BaseMetaSpecialist {
         });
 
         // 1. Verificar si tenemos un JD (mensaje o archivos)
-        const hasJD = userMessage.length > 50 || (docContext && docContext.length > 50);
+        const safeUserMessage = userMessage || '';
+        const hasJD = safeUserMessage.length > 50 || (docContext && docContext.length > 50);
 
         if (!hasJD) {
             return {
@@ -46,7 +47,7 @@ export class LinkedInScouterAgent extends BaseMetaSpecialist {
         try {
             // 2. Extraer keywords para la búsqueda
             // Combinamos mensaje y contexto documental
-            const fullJD = `[MENSAJE USUARIO]: ${userMessage}\n[CONTEXTO TRABAJO]: ${docContext || ''}`;
+            const fullJD = `[MENSAJE USUARIO]: ${safeUserMessage}\n[CONTEXTO TRABAJO]: ${docContext || ''}`;
 
             console.log(`[LinkedInScouter] Analizando JD para extraer query...`);
             yield { type: 'status', message: 'Analizando la oferta de trabajo y generando estrategia de búsqueda...' };
@@ -63,7 +64,7 @@ export class LinkedInScouterAgent extends BaseMetaSpecialist {
             // 3. Ejecutar búsqueda en Google (filtro site:linkedin.com/in ya está en el CSE o se añade aquí)
             // Nota: Si el CSE no tiene el filtro, lo añadimos manualmente
             yield { type: 'status', message: `Buscando perfiles en LinkedIn para: ${searchQuery}...` };
-            const results: SearchResult[] = await searchLinkedInProfiles(searchQuery);
+            const results: SearchResult[] = (await searchLinkedInProfiles(searchQuery)) || [];
 
             if (results.length === 0) {
                 return {
