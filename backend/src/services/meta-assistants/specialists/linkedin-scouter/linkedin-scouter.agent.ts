@@ -33,7 +33,7 @@ export class LinkedInScouterAgent extends BaseMetaSpecialist {
 
         // 1. Verificar si tenemos un JD (mensaje o archivos)
         const safeUserMessage = userMessage || '';
-        const hasJD = safeUserMessage.length > 50 || (docContext && docContext.length > 50);
+        const hasJD = safeUserMessage.length > 5 || (docContext && docContext.length > 10);
 
         if (!hasJD) {
             return {
