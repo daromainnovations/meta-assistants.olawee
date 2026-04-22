@@ -3,7 +3,7 @@ import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { BaseMetaSpecialist } from '../../base-specialist';
-import { MetaContext, MetaResult } from '../../meta.types';
+import { MetaContext, MetaResult, MetaStreamEvent } from '../../meta.types';
 import { fillDocxTemplate, getDocxStructure } from './docx_filler';
 import { fillXlsxTemplate, getXlsxStructure } from './xlsx_filler';
 
@@ -14,7 +14,7 @@ export class TemplateFillerAgent extends BaseMetaSpecialist {
 
     protected getName(): string { return 'TemplateFiller'; }
 
-    protected async execute(context: MetaContext): Promise<MetaResult> {
+    protected async *execute(context: MetaContext): AsyncGenerator<MetaStreamEvent, any, unknown> {
         const { userMessage, files, sessionId, docContext, metaId, model: modelName } = context;
         console.log(`\n[TemplateFiller] ▶ Modo Estructural: ${sessionId}`);
 
@@ -36,8 +36,8 @@ export class TemplateFillerAgent extends BaseMetaSpecialist {
                                 type: "object",
                                 properties: {
                                     filename: { type: "string" },
-                                    data: { 
-                                        type: "object", 
+                                    data: {
+                                        type: "object",
                                         description: "Objeto key-value. Usa IDs como 'ID_1' para sustituir párrafos específicos."
                                     }
                                 },
@@ -65,13 +65,14 @@ export class TemplateFillerAgent extends BaseMetaSpecialist {
 
             // --- FASE 1: DETERMINAR INTENCION ---
             const isInitialAnalysis = (!userMessage || userMessage.trim().length < 5) && !hasPastInstructions && !isShortConfirmation;
-            
+
             let structureList = "";
             if (isInitialAnalysis) {
                 const template = templates[0];
                 const buffer = template.buffer || (template.arrayBuffer ? Buffer.from(await template.arrayBuffer()) : null);
-                
+
                 if (buffer) {
+                    yield { type: 'status', message: 'Haciendo radiografía estructural de la plantilla...' };
                     if (template.originalname.endsWith('.docx')) {
                         const structure = await getDocxStructure(buffer);
                         structureList = structure.map((b: any) => `[${b.id}] ${b.text.substring(0, 100)}${b.text.length > 100 ? '...' : ''}`).join('\n');
@@ -99,6 +100,7 @@ export class TemplateFillerAgent extends BaseMetaSpecialist {
                 new HumanMessage(`${SYSTEM_PROMPT}\n\nPLANTILLA: ${templates[0].originalname}\nRADIOGRAFÍA DEL DOC:\n${structureList || docContext}\n\nInstrucción actual: ${userMessage || 'Analiza y presenta la estructura'}`)
             ];
 
+            yield { type: 'status', message: 'Calculando puntos de anclaje para variables...' };
             const response = await modelWithTools.invoke(messages);
 
             // 🛠️ MANEJO DE TOOLS + FAILSAFE
@@ -116,7 +118,7 @@ export class TemplateFillerAgent extends BaseMetaSpecialist {
                     if (parsed && Object.keys(parsed).length > 0) {
                         toolCall = { name: 'generar_documento_rellenado', args: { filename: templates[0].originalname, data: parsed.data || parsed } };
                     }
-                } catch (e) {}
+                } catch (e) { }
             }
 
             if (toolCall && toolCall.name === 'generar_documento_rellenado') {
@@ -125,13 +127,14 @@ export class TemplateFillerAgent extends BaseMetaSpecialist {
                     const original = t.originalname.toLowerCase().replace(/[–—]/g, '-');
                     return original === requestedFile || original.includes(requestedFile);
                 }) || templates[0];
-                
+
                 console.info(`[TemplateFiller] 🚀 Ejecutando llenado para: ${templateFile.originalname}`);
                 console.info(`[TemplateFiller] 📦 Datos: ${JSON.stringify(toolCall.args.data)}`);
 
                 const templateBuffer = templateFile.buffer || (templateFile.arrayBuffer ? Buffer.from(await templateFile.arrayBuffer()) : null);
                 if (!templateBuffer) throw new Error("No se pudo obtener el buffer de la plantilla.");
 
+                yield { type: 'status', message: 'Insertando datos generados en el documento nativo...' };
                 const processedBuffer = templateFile.originalname.toLowerCase().endsWith('.xlsx')
                     ? await fillXlsxTemplate(templateBuffer, toolCall.args.data)
                     : await fillDocxTemplate(templateBuffer, toolCall.args.data);

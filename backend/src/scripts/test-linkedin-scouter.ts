@@ -9,7 +9,7 @@ import { MetaContext } from '../services/meta-assistants/meta.types';
 
 async function runTest() {
     console.log('🚀 Iniciando prueba real de LinkedIn Scouter...');
-    
+
     if (!process.env.TAVILY_API_KEY) {
         console.error('❌ Error: Falta la clave TAVILY_API_KEY en el .env');
         return;
@@ -27,13 +27,21 @@ async function runTest() {
 
     try {
         console.log('🔍 Llamando al agente (esto puede tardar unos segundos)...');
-        const result = await linkedinScouterAgent.run(context);
-        
+        const stream = await linkedinScouterAgent.run(context);
+        let result: any = null;
+        for await (const event of stream) {
+            if (event.type === 'status') {
+                console.log(`[STATUS] ${event.message}`);
+            } else if (event.type === 'done') {
+                result = event.result;
+            }
+        }
+
         console.log('\n--- 🤖 RESPUESTA DE LA IA ---');
-        console.log(result.ai_response);
+        console.log(result?.ai_response);
         console.log('-----------------------------\n');
-        
-        if (result.status === 'success') {
+
+        if (result?.status === 'success') {
             console.log('✅ Prueba completada con éxito.');
         } else {
             console.log('⚠️ La prueba devolvió un estado de error.');

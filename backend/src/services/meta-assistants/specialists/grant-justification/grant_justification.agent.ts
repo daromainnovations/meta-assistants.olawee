@@ -2,7 +2,7 @@ import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { metaMemoryService } from '../../meta-memory.service';
 import { BaseMetaSpecialist } from '../../base-specialist';
-import { MetaContext, MetaResult } from '../../meta.types';
+import { MetaContext, MetaResult, MetaStreamEvent } from '../../meta.types';
 import { extractDataFromFiles, InvoiceData } from './document_parser';
 import { editExcel } from './excel_editor';
 import * as fs from 'fs';
@@ -10,7 +10,7 @@ import * as path from 'path';
 
 const DEBUG_LOG = path.join(process.cwd(), 'justification_debug.log');
 const writeLog = (msg: string) => {
-  try { fs.appendFileSync(DEBUG_LOG, `[${new Date().toISOString()}] [AGENT] ${msg}\n`); } catch {}
+  try { fs.appendFileSync(DEBUG_LOG, `[${new Date().toISOString()}] [AGENT] ${msg}\n`); } catch { }
 };
 
 // ============================================================
@@ -47,7 +47,7 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
 
   protected getName(): string { return 'GrantJustifier'; }
 
-  protected async execute(context: MetaContext): Promise<MetaResult> {
+  protected async *execute(context: MetaContext): AsyncGenerator<MetaStreamEvent, any, unknown> {
     const { userMessage, files, sessionId, docContext, metaId, model: modelName } = context;
     writeLog(`=== NUEVA EJECUCIÓN | Session: ${sessionId} | Archivos: ${files?.length || 0} ===`);
     console.log(`\n[GrantJustifier] ▶ Starting. Session: ${sessionId} | Files: ${files?.length || 0}`);
@@ -61,6 +61,7 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
 
       if (files && files.length > 0) {
         writeLog(`Extrayendo datos de ${files.length} archivos...`);
+        yield { type: 'status', message: `Extrayendo datos analíticos de ${files.length} archivos...` };
         const extractedData = await extractDataFromFiles(files);
 
         // Construir contexto de facturas
@@ -117,23 +118,23 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
                 type: 'object',
                 description: 'Datos del gasto a registrar',
                 properties: {
-                  refGasto:              { type: 'string', description: 'Referencia interna del gasto' },
-                  numFactura:            { type: 'string', description: 'Número de factura' },
-                  proveedor:             { type: 'string', description: 'Nombre del proveedor' },
-                  partida:               { type: 'string', description: 'Partida presupuestaria' },
-                  actividad:             { type: 'string', description: 'Actividad o paquete de trabajo' },
-                  fecha:                 { type: 'string', description: 'Fecha de la factura DD/MM/YYYY' },
-                  concepto:              { type: 'string', description: 'Descripción del gasto' },
-                  baseImponible:         { type: 'number', description: 'Base imponible en euros' },
-                  iva:                   { type: 'number', description: 'Importe de IVA en euros' },
-                  retencion:             { type: 'number', description: 'Retención IRPF en euros' },
-                  total:                 { type: 'number', description: 'Total factura en euros' },
-                  importeImputado:       { type: 'number', description: 'Importe subvencionable imputado' },
-                  observacionesFactura:  { type: 'string', description: 'Observaciones sobre la factura' },
-                  refJustificante:       { type: 'string', description: 'Referencia del justificante de pago' },
-                  fechaPago:             { type: 'string', description: 'Fecha de pago DD/MM/YYYY' },
-                  importePagado:         { type: 'number', description: 'Importe efectivamente pagado' },
-                  observacionesPago:     { type: 'string', description: 'Observaciones sobre el pago' }
+                  refGasto: { type: 'string', description: 'Referencia interna del gasto' },
+                  numFactura: { type: 'string', description: 'Número de factura' },
+                  proveedor: { type: 'string', description: 'Nombre del proveedor' },
+                  partida: { type: 'string', description: 'Partida presupuestaria' },
+                  actividad: { type: 'string', description: 'Actividad o paquete de trabajo' },
+                  fecha: { type: 'string', description: 'Fecha de la factura DD/MM/YYYY' },
+                  concepto: { type: 'string', description: 'Descripción del gasto' },
+                  baseImponible: { type: 'number', description: 'Base imponible en euros' },
+                  iva: { type: 'number', description: 'Importe de IVA en euros' },
+                  retencion: { type: 'number', description: 'Retención IRPF en euros' },
+                  total: { type: 'number', description: 'Total factura en euros' },
+                  importeImputado: { type: 'number', description: 'Importe subvencionable imputado' },
+                  observacionesFactura: { type: 'string', description: 'Observaciones sobre la factura' },
+                  refJustificante: { type: 'string', description: 'Referencia del justificante de pago' },
+                  fechaPago: { type: 'string', description: 'Fecha de pago DD/MM/YYYY' },
+                  importePagado: { type: 'number', description: 'Importe efectivamente pagado' },
+                  observacionesPago: { type: 'string', description: 'Observaciones sobre el pago' }
                 }
               },
               insertionMode: {
@@ -164,6 +165,7 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
         new HumanMessage(combinedPrompt)
       ];
 
+      yield { type: 'status', message: 'Auditando justificantes con expediente histórico...' };
       const response = await modelWithTools.invoke(messages);
 
       // ─────────────────────────────────────────
@@ -204,7 +206,7 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
 
         const excelBuffer = excelFile.buffer || (excelFile.arrayBuffer ? Buffer.from(await excelFile.arrayBuffer()) : null);
         if (!excelBuffer) {
-           return {
+          return {
             status: 'success',
             ai_response: '⚠️ Error: No se pudo leer el contenido del archivo Excel.',
             specialist: metaId,
@@ -212,6 +214,7 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
           };
         }
 
+        yield { type: 'status', message: 'Ejecutando integración nativa de datos en Excel...' };
         const editResult = editExcel(
           excelBuffer,
           null,

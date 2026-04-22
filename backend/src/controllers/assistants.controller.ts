@@ -8,7 +8,7 @@ import { assistantsService } from '../services/assistants.service';
  * extrae datos y archivos, y delega la ejecución a la capa de Servicio.
  */
 export class AssistantsController {
-    
+
     /**
      * Procesa la ejecución de un Meta-Asistente especializado vía API.
      */
@@ -29,7 +29,7 @@ export class AssistantsController {
             // Manejo de Multipart/Form-Data (Archivos + Body)
             if (contentType.includes('multipart/form-data')) {
                 const formData = await req.formData();
-                
+
                 // Extraer todos los campos que no sean archivos
                 formData.forEach((value, key) => {
                     if (value instanceof File) {
@@ -45,14 +45,26 @@ export class AssistantsController {
 
             // Delegar a la capa de servicio de asistentes
             const result = await assistantsService.executeAssistant(metaId, body, files as any);
-            
+
+            // Si el resultado es un ReadableStream (Server-Sent Events), devolverlo directamente con cabeceras
+            if (result instanceof ReadableStream) {
+                return new NextResponse(result, {
+                    headers: {
+                        'Content-Type': 'text/event-stream',
+                        'Cache-Control': 'no-cache, no-transform',
+                        'Connection': 'keep-alive'
+                    }
+                });
+            }
+
+            // Fallback: respuesta JSON normal para casos de error o endpoints síncronos
             return NextResponse.json(result);
 
         } catch (error: any) {
             console.error(`[API Controller] ❌ Error in executeAssistant [${metaId}]:`, error);
-            return NextResponse.json({ 
-                status: 'error', 
-                message: error.message || 'Internal Server Error' 
+            return NextResponse.json({
+                status: 'error',
+                message: error.message || 'Internal Server Error'
             }, { status: 500 });
         }
     }
@@ -61,10 +73,10 @@ export class AssistantsController {
      * Health Check
      */
     async healthCheck() {
-        return NextResponse.json({ 
-            status: 'ok', 
-            time: new Date().toISOString(), 
-            env: process.env.APP_ENV 
+        return NextResponse.json({
+            status: 'ok',
+            time: new Date().toISOString(),
+            env: process.env.APP_ENV
         });
     }
 }

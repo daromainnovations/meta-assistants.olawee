@@ -1,7 +1,7 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { BaseMetaSpecialist } from '../../base-specialist';
-import { MetaContext, MetaResult } from '../../meta.types';
+import { MetaContext, MetaResult, MetaStreamEvent } from '../../meta.types';
 import { metaMemoryService } from '../../meta-memory.service';
 import { extractCVsFromFiles } from './cv_parser';
 import { RankingGenerator, RankingResult } from './ranking_generator';
@@ -28,8 +28,8 @@ Tu objetivo es guiar al usuario en el cribado de candidatos siguiendo un proceso
 
 export class CVScreenerAgent extends BaseMetaSpecialist {
   protected getName(): string { return 'CVScreener'; }
-  
-  protected async execute(context: MetaContext): Promise<MetaResult> {
+
+  protected async *execute(context: MetaContext): AsyncGenerator<MetaStreamEvent, any, unknown> {
     const { userMessage, files, sessionId, docContext, metaId, model: modelName } = context;
     const model = new ChatGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY, model: modelName || 'gemini-2.0-flash', temperature: 0 });
 
@@ -37,10 +37,11 @@ export class CVScreenerAgent extends BaseMetaSpecialist {
       // 1. Extracción de perfiles (Asegurar que siempre procesamos los archivos de la sesión)
       let extractedContext = '';
       const allFiles = files || [];
-      
+
       if (allFiles.length > 0) {
         // En un entorno real, podríamos cachear esto para no llamar a Gemini cada vez,
         // pero para asegurar persistencia turno-a-turno, los extraemos del context.files
+        yield { type: 'status', message: 'Leyendo información de los currículums...' };
         const extractedData = await extractCVsFromFiles(allFiles);
         extractedData.forEach(fd => fd.profiles.forEach(p => {
           extractedContext += `\n📄 CV: ${p.nombre}\n- Skills: ${p.habilidadesTecnicas?.join(', ')}\n- Exp: ${p.experienciaTotalAnos}y\n- Resumen: ${p.resumenPerfil}\n`;
@@ -53,79 +54,82 @@ export class CVScreenerAgent extends BaseMetaSpecialist {
         - Previous DocContext: ${docContext?.length || 0} chars`);
 
       const lower = userMessage.toLowerCase();
-      
+
       // Disparador de Ranking:
       const isRankingRequest = (lower.includes('excel') || lower.includes('pdf') || lower.includes('genera el ranking') || lower.includes('haz el ranking')) ||
-                               ( (lower.includes('adelante') || lower.includes('perfecto') || lower.includes('ok') || lower.includes('está bien')) && (docContext?.includes('pesos') || extractedContext.includes('CV:')));
+        ((lower.includes('adelante') || lower.includes('perfecto') || lower.includes('ok') || lower.includes('está bien')) && (docContext?.includes('pesos') || extractedContext.includes('CV:')));
 
       const hasCvs = (docContext && docContext.length > 20) || (extractedContext && extractedContext.length > 20);
 
       // 2. Lógica Determinista de Ranking
       if (isRankingRequest) {
-          if (!hasCvs) {
-            return {
-              status: 'success',
-              ai_response: "Aún no he procesado ningún currículum. Por favor, sube los archivos (PDF, Excel, TXT) para poder realizar el ranking.",
-              specialist: metaId,
-              timestamp: new Date().toISOString()
-            };
-          }
+        if (!hasCvs) {
+          return {
+            status: 'success',
+            ai_response: "Aún no he procesado ningún currículum. Por favor, sube los archivos (PDF, Excel, TXT) para poder realizar el ranking.",
+            specialist: metaId,
+            timestamp: new Date().toISOString()
+          };
+        }
 
-          console.log(`[CVScreener] 📊 Generando ranking solicitado.`);
-          const analysisPrompt = `Genera un ranking de los candidatos para el puesto. 
+        console.log(`[CVScreener] 📊 Generando ranking solicitado.`);
+        yield { type: 'status', message: 'Generando ranking de candidatos por competencias...' };
+        const analysisPrompt = `Genera un ranking de los candidatos para el puesto. 
           [CANDIDATOS]: ${docContext || ''} ${extractedContext}
           [JD/MENSAJE]: ${userMessage}
           Respuesta en JSON: { "puesto": "...", "candidatos": [ { "nombre": "...", "puntuacion": 0-100, "resumen": "...", "highlight": "..." } ] }`;
 
-          const res = await model.invoke([new SystemMessage("Eres un analista de RRHH que responde en JSON."), new HumanMessage(analysisPrompt)]);
-          const content = typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
-          const jsonStr = content.replace(/```json/g, '').replace(/```/g, '').trim();
-          const rankingData = JSON.parse(jsonStr);
+        const res = await model.invoke([new SystemMessage("Eres un analista de RRHH que responde en JSON."), new HumanMessage(analysisPrompt)]);
+        const content = typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+        const jsonStr = content.replace(/```json/g, '').replace(/```/g, '').trim();
+        const rankingData = JSON.parse(jsonStr);
 
-          const rankingResult: RankingResult = { 
-            puesto: rankingData.puesto, 
-            pesos: { skills: 40, experiencia: 25, formacion: 15, idiomas: 10, softSkills: 10 }, 
-            candidatos: rankingData.candidatos 
-          };
-          metaMemoryService.saveSessionMetadata(sessionId, metaId, 'last_ranking', rankingResult);
+        const rankingResult: RankingResult = {
+          puesto: rankingData.puesto,
+          pesos: { skills: 40, experiencia: 25, formacion: 15, idiomas: 10, softSkills: 10 },
+          candidatos: rankingData.candidatos
+        };
+        metaMemoryService.saveSessionMetadata(sessionId, metaId, 'last_ranking', rankingResult);
 
-          let tableMd = `\n\n### 📊 Ranking Final\n| # | Candidato | Puntos | Punto Fuerte |\n|---|-----------|--------|--------------|\n`;
-          rankingData.candidatos.forEach((c: any, i: number) => {
-            tableMd += `| ${i+1} | **${c.nombre}** | ${c.puntuacion}/100 | ${c.highlight} |\n`;
+        let tableMd = `\n\n### 📊 Ranking Final\n| # | Candidato | Puntos | Punto Fuerte |\n|---|-----------|--------|--------------|\n`;
+        rankingData.candidatos.forEach((c: any, i: number) => {
+          tableMd += `| ${i + 1} | **${c.nombre}** | ${c.puntuacion}/100 | ${c.highlight} |\n`;
+        });
+
+        let generatedFiles = [];
+        if (lower.includes('excel') || lower.includes('pdf')) {
+          const isPdf = lower.includes('pdf');
+          yield { type: 'status', message: `Exportando resultados del ranking a formato ${isPdf ? 'PDF' : 'Excel'}...` };
+          const buffer = isPdf ? await RankingGenerator.generatePDF(rankingResult) : await RankingGenerator.generateExcel(rankingResult);
+          generatedFiles.push({
+            filename: `Ranking_${isPdf ? 'PDF' : 'Excel'}_${Date.now()}.${isPdf ? 'pdf' : 'xlsx'}`,
+            buffer,
+            mimetype: isPdf ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
           });
+        }
 
-          let generatedFiles = [];
-          if (lower.includes('excel') || lower.includes('pdf')) {
-            const isPdf = lower.includes('pdf');
-            const buffer = isPdf ? await RankingGenerator.generatePDF(rankingResult) : await RankingGenerator.generateExcel(rankingResult);
-            generatedFiles.push({ 
-              filename: `Ranking_${isPdf ? 'PDF' : 'Excel'}_${Date.now()}.${isPdf ? 'pdf' : 'xlsx'}`, 
-              buffer, 
-              mimetype: isPdf ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-            });
-          }
-
-          return {
-            status: 'success',
-            ai_response: `Análisis completado conforme a tus criterios.\n${tableMd}\n\n${generatedFiles.length > 0 ? 'He generado el archivo descargable.' : '¿Te gustaría que exporte este resultado a **Excel** o **PDF**?'}`,
-            specialist: metaId,
-            generated_files: generatedFiles.length > 0 ? generatedFiles : undefined,
-            timestamp: new Date().toISOString()
-          };
+        return {
+          status: 'success',
+          ai_response: `Análisis completado conforme a tus criterios.\n${tableMd}\n\n${generatedFiles.length > 0 ? 'He generado el archivo descargable.' : '¿Te gustaría que exporte este resultado a **Excel** o **PDF**?'}`,
+          specialist: metaId,
+          generated_files: generatedFiles.length > 0 ? generatedFiles : undefined,
+          timestamp: new Date().toISOString()
+        };
       }
 
       // 3. Respuesta Conversacional Guíada (Solo si hay CVs)
       if (!hasCvs) {
-          return {
-              status: 'success',
-              ai_response: `¡Hola! Soy OLAWEE CV-Screener, tu headhunter digital experto. 👋
+        return {
+          status: 'success',
+          ai_response: `¡Hola! Soy OLAWEE CV-Screener, tu headhunter digital experto. 👋
 
 Todavía no he recibido ningún currículum para analizar. Por favor, sube los archivos y facilítame la descripción del puesto deseado para empezar.`,
-              specialist: metaId,
-              timestamp: new Date().toISOString()
-          };
+          specialist: metaId,
+          timestamp: new Date().toISOString()
+        };
       }
 
+      yield { type: 'status', message: 'Analizando perfiles...' };
       const response = await model.invoke([
         new SystemMessage(SYSTEM_PROMPT),
         new HumanMessage(`[CONTEXTO RECIENTE]\n${docContext || ''}\n[NUEVOS DATOS]\n${extractedContext}\n\n[USER]: ${userMessage}`)
