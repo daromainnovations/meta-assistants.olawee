@@ -28,7 +28,8 @@ export class LinkedInScouterAgent extends BaseMetaSpecialist {
         const model = new ChatGoogleGenerativeAI({
             apiKey: process.env.GEMINI_API_KEY,
             model: modelName || 'gemini-2.0-flash',
-            temperature: 0
+            temperature: 0,
+            maxOutputTokens: 8192
         });
 
         // 1. Verificar si tenemos un JD (mensaje o archivos)
