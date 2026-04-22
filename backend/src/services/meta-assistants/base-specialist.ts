@@ -1,4 +1,4 @@
-import { MetaContext, MetaResult } from './meta.types';
+import { MetaContext, MetaResult, MetaStreamEvent } from './meta.types';
 import { GenericFile } from '../shared/document.service';
 
 /**
@@ -12,26 +12,28 @@ export abstract class BaseMetaSpecialist {
      * Punto de entrada principal (invocado por el MetaHandler).
      * El desarrollador solo implementa 'execute'.
      */
-    public async run(context: MetaContext): Promise<MetaResult> {
+    public async *run(context: MetaContext): AsyncGenerator<MetaStreamEvent, any, unknown> {
         console.log(`[${this.getName()}] 🚀 Inyectando Bases (Memory + Docs + Files)`);
-        
+
         try {
-            return await this.execute(context);
+            return yield* this.execute(context);
         } catch (error: any) {
             console.error(`[${this.getName()}] ❌ Execution Error:`, error.message);
-            return {
+            const errResult: MetaResult = {
                 status: 'error',
                 ai_response: `Lo siento, el asistente ${context.metaId} ha tenido un error: ${error.message}`,
                 specialist: context.metaId,
                 timestamp: new Date().toISOString()
             };
+            yield { type: 'done', result: errResult };
+            return errResult;
         }
     }
 
     /**
      * Lógica pura del asistente (donde ocurre la magia de la IA).
      */
-    protected abstract execute(context: MetaContext): Promise<MetaResult>;
+    protected abstract execute(context: MetaContext): AsyncGenerator<MetaStreamEvent, any, unknown>;
 
     /**
      * Nombre descriptivo para logs.

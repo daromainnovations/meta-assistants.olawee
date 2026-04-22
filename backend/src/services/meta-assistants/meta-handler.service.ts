@@ -103,117 +103,144 @@ export class MetaHandlerService {
 
         console.log(`\n[MetaHandler] 🚀 --- START SPECIALIST: "${metaId}" ---`);
 
-        // ══════════════════════════════════════════════════════════════
-        // 🔲 BASE 1: MEMORIA DE ARCHIVOS (PERSISTENCIA TURNO A TURNO)
-        // ══════════════════════════════════════════════════════════════
-        if (files && files.length > 0) {
-            metaMemoryService.saveSessionFiles(sessionId, metaId, files);
-        }
-        const allSessionFiles = metaMemoryService.getSessionFiles(sessionId, metaId);
+        // Devolvemos el Stream inmediatamente al controlador
+        return new ReadableStream({
+            async start(streamController) {
+                const encoder = new TextEncoder();
 
-        // ══════════════════════════════════════════════════════════════
-        // 🔲 BASE 2: MEMORIA DE DOCUMENTOS (RESILIENTE)
-        // ══════════════════════════════════════════════════════════════
-        const finalDocContext = await metaMemoryService.getEffectiveContext(sessionId, metaId, documentContext);
-
-        // ══════════════════════════════════════════════════════════════
-        // 🔲 BASE 3: MEMORIA DE CONVERSACIÓN (AISLADA)
-        // ══════════════════════════════════════════════════════════════
-        const history = await metaMemoryService.getMetaChatHistory(sessionId, metaId);
-
-        // ══════════════════════════════════════════════════════════════
-        // 🔲 AUTO-TITULADO (FIRE & FORGET)
-        // ══════════════════════════════════════════════════════════════
-        if (userMessageContent) {
-            titleGeneratorAutomation.generateTitleAsync(sessionId, userMessageContent, 'meta-assistant', metaId).catch(e => {
-                console.error('[MetaHandler] Title error:', e);
-            });
-        }
-
-        // GUARDAR MENSAJE USUARIO EN BD (AISLADO)
-        await metaMemoryService.saveMessage(sessionId, metaId, 'human', userMessageContent);
-
-        // ══════════════════════════════════════════════════════════════
-        // 🔴 EJECUCIÓN DEL ESPECIALISTA (Lógica de Negocio)
-        // ══════════════════════════════════════════════════════════════
-        const context: MetaContext = {
-            sessionId,
-            metaId,
-            userMessage: userMessageContent,
-            files: allSessionFiles,
-            docContext: finalDocContext,
-            history: history,
-            model: modelStr
-        };
-
-        let specialistResult: MetaResult;
-        try {
-            specialistResult = await config.agent.run(context);
-            if (!specialistResult || !specialistResult.ai_response) {
-                console.warn(`[MetaHandler] ⚠️ El especialista ${metaId} devolvió un resultado vacío.`);
-                specialistResult = {
-                    status: 'error',
-                    ai_response: 'Lo siento, no he podido procesar tu solicitud en este momento. Por favor, inténtalo de nuevo.',
-                    specialist: metaId,
-                    timestamp: new Date().toISOString()
+                const emitEvent = (payload: any) => {
+                    const dataStr = `data: ${JSON.stringify(payload)}\n\n`;
+                    streamController.enqueue(encoder.encode(dataStr));
                 };
-            }
-        } catch (err: any) {
-            console.error(`[MetaHandler] ❌ Error fatal en ejecución del especialista ${metaId}:`, err.message);
-            specialistResult = {
-                status: 'error',
-                ai_response: `⚠️ **Error Crítico:** Ha ocurrido un problema técnico al procesar el asistente (${err.message}). He notificado al equipo técnico.`,
-                specialist: metaId,
-                timestamp: new Date().toISOString()
-            };
-        }
 
-        // ══════════════════════════════════════════════════════════════
-        // 🔲 POST-PROCESADO: ARCHIVOS GENERADOS Y PERSISTENCIA AI
-        // ══════════════════════════════════════════════════════════════
-        
-        if (specialistResult?.generated_files && specialistResult.generated_files.length > 0) {
-            // Mapear bucket por especialista
-            const BUCKET_MAP: Record<string, string> = {
-                'template_filler': 'template-filler-files',
-                'grant_justification': 'grant-justification-files',
-                'cv_screening_rrhh': 'cv-screening-files'
-            };
-            const targetBucket = BUCKET_MAP[metaId] || process.env.SUPABASE_STORAGE_BUCKET || 'olawee-files';
-
-            for (const file of specialistResult.generated_files) {
-                if (file.buffer) {
-                    try {
-                        const publicUrl = await supabaseStorageService.uploadBuffer(
-                            file.buffer, 
-                            file.filename, 
-                            file.mimetype || 'application/octet-stream',
-                            targetBucket
-                        );
-                        file.url = publicUrl;
-                        
-                        const linkText = `\n\n📄 **Descargar:** [${file.filename}](${publicUrl})`;
-                        
-                        if (specialistResult.ai_response.includes('{{FILE_LINK}}')) {
-                            specialistResult.ai_response = specialistResult.ai_response.replace('{{FILE_LINK}}', linkText);
-                        } else {
-                            specialistResult.ai_response += linkText;
-                        }
-                        
-                        delete file.buffer;
-                    } catch (err: any) {
-                        console.error(`[MetaHandler] Error upload:`, err.message);
+                try {
+                    // ══════════════════════════════════════════════════════════════
+                    // 🔲 BASE 1: MEMORIA DE ARCHIVOS (PERSISTENCIA TURNO A TURNO)
+                    // ══════════════════════════════════════════════════════════════
+                    if (files && files.length > 0) {
+                        emitEvent({ type: 'status', message: 'Guardando archivos de la sesión en RAM...' });
+                        metaMemoryService.saveSessionFiles(sessionId, metaId, files);
                     }
+                    const allSessionFiles = metaMemoryService.getSessionFiles(sessionId, metaId);
+
+                    // ══════════════════════════════════════════════════════════════
+                    // 🔲 BASE 2: MEMORIA DE DOCUMENTOS (RESILIENTE)
+                    // ══════════════════════════════════════════════════════════════
+                    emitEvent({ type: 'status', message: 'Consultando base de conocimientos...' });
+                    const finalDocContext = await metaMemoryService.getEffectiveContext(sessionId, metaId, documentContext);
+
+                    // ══════════════════════════════════════════════════════════════
+                    // 🔲 BASE 3: MEMORIA DE CONVERSACIÓN (AISLADA)
+                    // ══════════════════════════════════════════════════════════════
+                    const history = await metaMemoryService.getMetaChatHistory(sessionId, metaId);
+
+                    // ══════════════════════════════════════════════════════════════
+                    // 🔲 AUTO-TITULADO (FIRE & FORGET)
+                    // ══════════════════════════════════════════════════════════════
+                    if (userMessageContent) {
+                        titleGeneratorAutomation.generateTitleAsync(sessionId, userMessageContent, 'meta-assistant', metaId).catch(e => {
+                            console.error('[MetaHandler] Title error:', e);
+                        });
+                    }
+
+                    await metaMemoryService.saveMessage(sessionId, metaId, 'human', userMessageContent);
+
+                    // ══════════════════════════════════════════════════════════════
+                    // 🔴 EJECUCIÓN DEL ESPECIALISTA (Lógica de Negocio SSE)
+                    // ══════════════════════════════════════════════════════════════
+                    const context: MetaContext = {
+                        sessionId,
+                        metaId,
+                        userMessage: userMessageContent,
+                        files: allSessionFiles,
+                        docContext: finalDocContext,
+                        history: history,
+                        model: modelStr
+                    };
+
+                    const agentGenerator = config.agent.run(context);
+                    let specialistResult: MetaResult | null = null;
+
+                    for await (const event of agentGenerator) {
+                        if (event.type === 'status') {
+                            emitEvent(event);
+                        } else if (event.type === 'done') {
+                            specialistResult = event.result as MetaResult;
+                        }
+                    }
+
+                    if (!specialistResult || !specialistResult.ai_response) {
+                        console.warn(`[MetaHandler] ⚠️ El especialista ${metaId} devolvió un resultado vacío.`);
+                        specialistResult = {
+                            status: 'error',
+                            ai_response: 'Lo siento, no he podido procesar tu solicitud en este momento. Por favor, inténtalo de nuevo.',
+                            specialist: metaId,
+                            timestamp: new Date().toISOString()
+                        };
+                    }
+
+                    // ══════════════════════════════════════════════════════════════
+                    // 🔲 POST-PROCESADO: ARCHIVOS GENERADOS Y PERSISTENCIA AI
+                    // ══════════════════════════════════════════════════════════════
+                    if (specialistResult?.generated_files && specialistResult.generated_files.length > 0) {
+                        emitEvent({ type: 'status', message: 'Subiendo los archivos generados a la nube (Supabase)...' });
+                        const BUCKET_MAP: Record<string, string> = {
+                            'template_filler': 'template-filler-files',
+                            'grant_justification': 'grant-justification-files',
+                            'cv_screening_rrhh': 'cv-screening-files'
+                        };
+                        const targetBucket = BUCKET_MAP[metaId] || process.env.SUPABASE_STORAGE_BUCKET || 'olawee-files';
+
+                        for (const file of specialistResult.generated_files) {
+                            if (file.buffer) {
+                                try {
+                                    const publicUrl = await supabaseStorageService.uploadBuffer(
+                                        file.buffer,
+                                        file.filename,
+                                        file.mimetype || 'application/octet-stream',
+                                        targetBucket
+                                    );
+                                    file.url = publicUrl;
+
+                                    const linkText = `\n\n📄 **Descargar:** [${file.filename}](${publicUrl})`;
+
+                                    if (specialistResult.ai_response.includes('{{FILE_LINK}}')) {
+                                        specialistResult.ai_response = specialistResult.ai_response.replace('{{FILE_LINK}}', linkText);
+                                    } else {
+                                        specialistResult.ai_response += linkText;
+                                    }
+
+                                    delete file.buffer;
+                                } catch (err: any) {
+                                    console.error(`[MetaHandler] Error upload:`, err.message);
+                                }
+                            }
+                        }
+                    }
+
+                    // GUARDAR RESPUESTA IA EN BD (AISLADA)
+                    if (specialistResult?.ai_response) {
+                        emitEvent({ type: 'status', message: 'Finalizando...' });
+                        await metaMemoryService.saveMessage(sessionId, metaId, 'ai', specialistResult.ai_response);
+                    }
+
+                    // FIN DEL FLUJO SSE
+                    emitEvent({ type: 'done', data: specialistResult });
+
+                } catch (err: any) {
+                    console.error(`[MetaHandler] ❌ Error fatal en ejecución del especialista ${metaId}:`, err.message);
+                    const errorResult = {
+                        status: 'error',
+                        ai_response: `⚠️ **Error Crítico:** Ha ocurrido un problema técnico al procesar el asistente (${err.message}).`,
+                        specialist: metaId,
+                        timestamp: new Date().toISOString()
+                    };
+                    emitEvent({ type: 'done', data: errorResult });
+                } finally {
+                    streamController.close();
                 }
             }
-        }
-
-        // GUARDAR RESPUESTA IA EN BD (AISLADA)
-        if (specialistResult?.ai_response) {
-            await metaMemoryService.saveMessage(sessionId, metaId, 'ai', specialistResult.ai_response);
-        }
-
-        return specialistResult;
+        });
     }
 }
 

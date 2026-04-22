@@ -15,9 +15,6 @@ export interface MetaContext {
     model: string;                // Modelo Gemini configurado
 }
 
-/**
- * Resultado estandarizado que devuelve un especialista.
- */
 export interface MetaResult {
     status: 'success' | 'error';
     ai_response: string;
@@ -31,3 +28,10 @@ export interface MetaResult {
     timestamp: string;
     metadata?: any;
 }
+
+/**
+ * Evento de Stream para enviar estados en vivo al Frontend.
+ */
+export type MetaStreamEvent =
+    | { type: 'status'; message: string }
+    | { type: 'done'; result: MetaResult };

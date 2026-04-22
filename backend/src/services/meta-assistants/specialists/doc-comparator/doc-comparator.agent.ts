@@ -1,7 +1,7 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { BaseMetaSpecialist } from '../../base-specialist';
-import { MetaContext, MetaResult } from '../../meta.types';
+import { MetaContext, MetaResult, MetaStreamEvent } from '../../meta.types';
 
 /**
  * 🔍 AGENTE ESPECIALISTA: DOCUMENT COMPARATOR (Comparador de Documentos)
@@ -10,7 +10,7 @@ export class DocComparatorAgent extends BaseMetaSpecialist {
 
     protected getName(): string { return 'DocComparator'; }
 
-    protected async execute(context: MetaContext): Promise<MetaResult> {
+    protected async *execute(context: MetaContext): AsyncGenerator<MetaStreamEvent, any, unknown> {
         const { userMessage, files, sessionId, docContext, model: modelName } = context;
         console.log(`\n[DocComparator] ▶ Starting analysis. Files: ${files.length}, Session: ${sessionId}`);
 
@@ -22,6 +22,7 @@ export class DocComparatorAgent extends BaseMetaSpecialist {
                 temperature: 0.1
             });
 
+            yield { type: 'status', message: 'Analizando metadatos de los documentos adjuntos...' };
             const categorized = this.categorizeFiles(files);
             const isCompareMode = files.length > 0;
             const DOC_COMPARATOR_SYSTEM_PROMPT = `Eres OLAWEE DocComparator... [OMITIDO POR BREVEDAD]`;
@@ -60,6 +61,7 @@ export class DocComparatorAgent extends BaseMetaSpecialist {
                 new HumanMessage({ content: contentParts })
             ];
 
+            yield { type: 'status', message: 'Comparando contenido mediante IA...' };
             const response = await model.invoke(messages);
             const finalReport = response.content as string;
 

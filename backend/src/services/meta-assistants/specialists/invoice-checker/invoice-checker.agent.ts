@@ -1,7 +1,7 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { BaseMetaSpecialist } from '../../base-specialist';
-import { MetaContext, MetaResult } from '../../meta.types';
+import { MetaContext, MetaResult, MetaStreamEvent } from '../../meta.types';
 
 /**
  * 🔍 AGENTE ESPECIALISTA: INVOICE CHECKER (Verificador de Facturas)
@@ -13,7 +13,7 @@ export class InvoiceCheckerAgent extends BaseMetaSpecialist {
     /**
      * Punto de entrada principal (reemplaza a run)
      */
-    protected async execute(context: MetaContext): Promise<MetaResult> {
+    protected async *execute(context: MetaContext): AsyncGenerator<MetaStreamEvent, any, unknown> {
         const { userMessage, files, sessionId, docContext, model: modelName } = context;
         console.log(`\n[InvoiceChecker] ▶ Starting audit. Files: ${files.length}, Session: ${sessionId}`);
 
@@ -36,7 +36,7 @@ export class InvoiceCheckerAgent extends BaseMetaSpecialist {
 
             const contentParts: any[] = [];
             let textContext = `Instrucción: ${userMessage}\n\n`;
-            
+
             if (docContext) {
                 textContext += `Datos de documentos:\n${docContext}\n\n`;
             } else {
@@ -66,6 +66,7 @@ export class InvoiceCheckerAgent extends BaseMetaSpecialist {
                 new HumanMessage({ content: contentParts })
             ];
 
+            yield { type: 'status', message: 'Auditando facturas y buscando congruencias en el Excel...' };
             const response = await model.invoke(messages);
             const aiResponse = response.content as string;
 

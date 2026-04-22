@@ -1,20 +1,20 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 import { BaseMetaSpecialist } from '../../base-specialist';
-import { MetaContext, MetaResult } from '../../meta.types';
+import { MetaContext, MetaResult, MetaStreamEvent } from '../../meta.types';
 import { prdPdfGenerator, PrdData } from './pdf-prd.generator';
 import { supabaseStorageService } from '../../../shared/storage/supabase-storage.service';
 
 export class ProjectPrdArchitectAgent extends BaseMetaSpecialist {
     protected getName(): string { return 'Project-PRD-Architect'; }
 
-    protected async execute(context: MetaContext): Promise<MetaResult> {
+    protected async *execute(context: MetaContext): AsyncGenerator<MetaStreamEvent, any, unknown> {
         const { userMessage, files, docContext, metaId, model: modelName } = context;
 
         const model = new ChatOpenAI({
             openAIApiKey: process.env.OPENAI_API_KEY,
             modelName: 'gpt-4o',
-            temperature: 0.4 
+            temperature: 0.4
         });
 
         const fullBrief = `[MENSAJE USUARIO]: ${userMessage}\n[CONTEXTO DOCUMENTOS]: ${docContext || ''}`;
@@ -34,6 +34,7 @@ export class ProjectPrdArchitectAgent extends BaseMetaSpecialist {
             // AGENTE 1: Executive CPO (Director de Producto)
             // ----------------------------------------------------
             console.log(`[ProjectPrdArchitect] -> Agente 1 (Product Officer) pensando...`);
+            yield { type: 'status', message: '🤖 CPO Virtual analizando el modelo de negocio y visión...' };
             const agent1Prompt = `Eres el Chief Product Officer (CPO) de una top startup tecnológica.
             Tu misión es leer este pequeño briefing y visualizar un Sistema Masivo y Robusto.
             Extrae de forma EXHAUSTIVA y EXTENSA:
@@ -53,6 +54,7 @@ export class ProjectPrdArchitectAgent extends BaseMetaSpecialist {
             // AGENTE 2: CTO / Arquitecto de Software
             // ----------------------------------------------------
             console.log(`[ProjectPrdArchitect] -> Agente 2 (Arquitecto CTO) pensando...`);
+            yield { type: 'status', message: '🤖 CTO Virtual diseñando sistema y matriz de riesgos...' };
             const agent2Prompt = `Eres un Chief Technology Officer (CTO) súper experimentado y meticuloso.
             A partir del Brief y la visión del CPO, tu trabajo es diseñar el apartado técnico y ver los posibles DESASTRES.
             Redacta de forma PROFUNDA:
@@ -71,6 +73,7 @@ export class ProjectPrdArchitectAgent extends BaseMetaSpecialist {
             // AGENTE 3: Ingeniero de Documentación (Genera el JSON final)
             // ----------------------------------------------------
             console.log(`[ProjectPrdArchitect] -> Agente 3 (Ingeniero de Documentación) armando PRD JSON...`);
+            yield { type: 'status', message: '🤖 Arquitecto AI transformando el análisis profundo en un documento PRD JSON...' };
             const agent3Prompt = `Eres un Documentador Técnico Experto. Tu trabajo es ensamblar toda la inteligencia aportada por el CPO y el CTO en un gran documento PRD JSON.
             
             IMPORTANTE: TU RESPUESTA DEBE SER ESTRICTAMENTE UN JSON VÁLIDO. ABSOLUTAMENTE NINGÚN CARÁCTER ADICIONAL NI MARKDOWN.
@@ -102,7 +105,7 @@ export class ProjectPrdArchitectAgent extends BaseMetaSpecialist {
             [VISIÓN CPO]: \n${briefAnalysis}
             
             [DISEÑO TÉCNICO Y RIESGOS CTO]: \n${riskAnalysis}`;
-            
+
             const modelJson = new ChatOpenAI({
                 openAIApiKey: process.env.OPENAI_API_KEY,
                 modelName: 'gpt-4o',
@@ -111,7 +114,7 @@ export class ProjectPrdArchitectAgent extends BaseMetaSpecialist {
             const res3 = await modelJson.invoke([new HumanMessage(agent3Prompt)], {
                 // If model has response_mime_type, we can set it for safety, but typically cleaning the string is enough
             });
-            
+
             // Extracción robusta del JSON
             let jsonString = (res3.content as string).trim();
             const jsonStartIdx = jsonString.indexOf('{');
@@ -126,11 +129,12 @@ export class ProjectPrdArchitectAgent extends BaseMetaSpecialist {
             // FINAL: Generación del PDF Extenso
             // ----------------------------------------------------
             console.log(`[ProjectPrdArchitect] Generando PDF Extenso para: ${prdData.title}...`);
+            yield { type: 'status', message: `Generando PDF Final: ${prdData.title}...` };
             const pdfBuffer = await prdPdfGenerator.generate(prdData);
 
             const bucketName = 'prd-documents';
             const fileName = `PRD_Ultra_${prdData.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.pdf`;
-            
+
             const fileUrl = await supabaseStorageService.uploadBuffer(
                 pdfBuffer,
                 fileName,

@@ -55,7 +55,7 @@ async function runCVScreenerStressTest() {
   // Rellenar hasta 20
   for (let i = 5; i < 20; i++) {
     candidates.push({
-      n: `Candidato ${i+1}`,
+      n: `Candidato ${i + 1}`,
       p: `Perfil genérico de administración y ventas con ${i} años de experiencia.`,
       s: ['Office', 'Ventas', 'CRM']
     });
@@ -85,14 +85,22 @@ async function runCVScreenerStressTest() {
   // 3. EJECUTAR ANÁLISIS (FASE 3)
   console.log('🤖 Invocando al Agente Especialista...');
   const start = Date.now();
-  const result = await cvScreenerAgent['execute'](mockContext);
+  const stream = await cvScreenerAgent.run(mockContext);
+  let result: any = null;
+  for await (const event of stream) {
+    if (event.type === 'status') {
+      console.log(`[STATUS] ${event.message}`);
+    } else if (event.type === 'done') {
+      result = event.result;
+    }
+  }
   const end = Date.now();
 
   console.log(`⏱️ Análisis completado en ${(end - start) / 1000}s`);
-  console.log(`\n--- RESPUESTA DEL AGENTE ---\n${result.ai_response}\n`);
+  console.log(`\n--- RESPUESTA DEL AGENTE ---\n${result?.ai_response}\n`);
 
   // 4. VERIFICAR RESULTADOS
-  if (result.status === 'success') {
+  if (result?.status === 'success') {
     console.log('✅ PASS: El agente respondió con éxito.');
   } else {
     console.error('❌ FAIL: Error en la ejecución del agente.');
@@ -100,7 +108,7 @@ async function runCVScreenerStressTest() {
 
   // 5. TEST DE GENERACIÓN DE ARCHIVOS (FASE 4)
   console.log('\n📊 Probando generación de informes...');
-  
+
   // Extraemos datos ficticios del ranking para el generador
   const mockRanking = {
     puesto: 'Senior Software Engineer',
