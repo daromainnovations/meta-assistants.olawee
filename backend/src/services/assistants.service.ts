@@ -12,7 +12,7 @@ async function getDocumentContext(sessionId: string): Promise<string> {
     if (!sessionId) return '';
     const db = prisma;
     try {
-        const existing = await db.chatsmeta.findFirst({ 
+        const existing = await db.chatsmeta.findFirst({
             where: { session_id: sessionId },
             orderBy: { created_at: 'desc' }
         });
@@ -30,7 +30,7 @@ async function saveDocumentContext(sessionId: string, docContext: string): Promi
     if (!sessionId || !docContext) return;
     const db = prisma;
     try {
-        const existing = await db.chatsmeta.findFirst({ 
+        const existing = await db.chatsmeta.findFirst({
             where: { session_id: sessionId },
             orderBy: { created_at: 'desc' }
         });
@@ -77,7 +77,7 @@ export class AssistantsService {
         const transformedBody = {
             chatInput: body.chatInput,
             model: body.model || 'gemini-2.0-flash',
-            session_id: body.session_id,
+            session_id: body.session_id || body.sessionId || body.idUserChat || `session_${Date.now()}`,
             systemprompt_doc: body.systemprompt_doc,
             systemPrompt: body.systemPrompt,
             history: body.history || [],
@@ -129,7 +129,11 @@ export class AssistantsService {
                 finalDocumentContext, transformedBody.tools, metaId, files
             );
 
-            executionLoggerService.logExecution(`assistants:${metaId}`, transformedBody, result, 'SUCCESS', Date.now() - startTime);
+            let loggableResult = result;
+            if (result instanceof ReadableStream) {
+                loggableResult = { status: 'success', message: 'ReadableStream SSE Active' };
+            }
+            executionLoggerService.logExecution(`assistants:${metaId}`, transformedBody, loggableResult, 'SUCCESS', Date.now() - startTime);
             return result;
 
         } catch (error: any) {
