@@ -7,7 +7,7 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  schemas   = ["meta", "meta_billing", "pruebas_executions", "qan8n2.0"]
+  schemas   = ["meta", "meta_billing", "pruebas_executions"]
 }
 
 model chatsmeta {
@@ -29,6 +29,54 @@ model mensajesmeta {
   session_id String?  @db.VarChar
 
   @@schema("meta")
+}
+
+model MetaAssistantCatalog {
+  meta_id     String  @id
+  name        String
+  description String?
+  category    String
+  is_premium  Boolean @default(false)
+  access_type String  @default("PUBLIC")
+  owner_id    Int?
+  total_uses  Int     @default(0)
+
+  @@schema("meta")
+}
+
+model UserProfile {
+  id           Int          @id
+  plan_type    String       @default("FREE")
+  created_at   DateTime     @default(now()) @db.Timestamptz(6)
+  usage_events UsageEvent[]
+  user_access  UserAccess[]
+
+  @@schema("meta_billing")
+}
+
+model UsageEvent {
+  request_id String      @id
+  user_id    Int
+  meta_id    String
+  status     String      @default("STARTED")
+  created_at DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at DateTime    @updatedAt @db.Timestamptz(6)
+  user       UserProfile @relation(fields: [user_id], references: [id])
+
+  @@index([user_id, meta_id])
+  @@schema("meta_billing")
+}
+
+model UserAccess {
+  id           Int         @id @default(autoincrement())
+  user_id      Int
+  meta_id      String
+  access_level String      @default("UNLIMITED")
+  granted_at   DateTime    @default(now()) @db.Timestamptz(6)
+  user         UserProfile @relation(fields: [user_id], references: [id])
+
+  @@unique([user_id, meta_id])
+  @@schema("meta_billing")
 }
 
 model executions {
@@ -66,105 +114,4 @@ model exec_chats {
   output     Json?
 
   @@schema("pruebas_executions")
-}
-
-model chats_agentes {
-  id               BigInt    @id(map: "prueba_chatsassistants_pkey") @default(autoincrement())
-  created_at       DateTime  @default(now()) @db.Timestamptz(6)
-  session_id       String?   @db.VarChar
-  id_assistant     String?   @db.VarChar
-  titulo           String?
-  systemprompt_doc String?
-  updated_at       DateTime? @db.Timestamptz(6)
-
-  @@schema("qan8n2.0")
-}
-
-model chatsllms {
-  id               BigInt    @id(map: "prueba_mensajesllms_pkey") @default(autoincrement())
-  created_at       DateTime  @default(now()) @db.Timestamptz(6)
-  session_id       String?   @db.VarChar
-  titulo           String?
-  systemprompt_doc String?
-  updated_at       DateTime? @db.Timestamptz(6)
-
-  @@schema("qan8n2.0")
-}
-
-model google_credentials {
-  id               String   @id @db.VarChar
-  encrypted_tokens String
-  created_at       DateTime @default(now()) @db.Timestamptz(6)
-  updated_at       DateTime @db.Timestamptz(6)
-
-  @@schema("qan8n2.0")
-}
-
-model mensajes_agentes {
-  id         BigInt   @id(map: "prueba_mensajesassistants_pkey") @default(autoincrement())
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  message    Json?
-  session_id String?  @db.VarChar
-
-  @@schema("qan8n2.0")
-}
-
-model mensajesllms {
-  id         BigInt   @id(map: "prueba_mensajesllms_pkey1") @default(autoincrement())
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  message    Json?
-  session_id String?  @db.VarChar
-
-  @@schema("qan8n2.0")
-}
-
-model scheduled_tasks {
-  id         String   @id
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  execute_at DateTime @db.Timestamptz(6)
-  type       String
-  status     String   @default("PENDING")
-  payload    Json
-  meta_id    String?  @db.VarChar
-  session_id String?  @db.VarChar
-
-  @@schema("qan8n2.0")
-}
-
-// ============================================================
-// 💳 BILLING & USAGE — Gestión de Cuotas y Catálogo
-// ============================================================
-
-model UserProfile {
-  id         String   @id // UUID de Supabase Auth
-  plan_type  String   @default("FREE")
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-
-  usage_events UsageEvent[]
-
-  @@schema("meta_billing")
-}
-
-model UsageEvent {
-  request_id String   @id // UUID generado por el frontend
-  user_id    String
-  meta_id    String
-  status     String   @default("STARTED") // STARTED, SUCCESS, FAILED, CANCELLED
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  updated_at DateTime @updatedAt @db.Timestamptz(6)
-
-  user UserProfile @relation(fields: [user_id], references: [id])
-
-  @@index([user_id, meta_id])
-  @@schema("meta_billing")
-}
-
-model MetaAssistantCatalog {
-  meta_id     String  @id
-  name        String
-  description String?
-  category    String
-  total_uses  Int     @default(0)
-
-  @@schema("meta_billing")
 }

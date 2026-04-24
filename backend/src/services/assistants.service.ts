@@ -60,7 +60,7 @@ export class AssistantsService {
      * @param body El cuerpo de la solicitud (JSON o form-data fields)
      * @param files Archivos adjuntos si existen
      */
-    async executeAssistant(metaId: string, body: any, files?: GenericFile[], userId?: string, requestId?: string): Promise<any> {
+    async executeAssistant(metaId: string, body: any, files?: GenericFile[], userId?: number, requestId?: string): Promise<any> {
         console.log(`[AssistantsService] 🚀 Executing Assistant: ${metaId} (User: ${userId}, Request: ${requestId})`);
 
         // 1. Control de Cuotas e Idempotencia (Paso previo a cualquier proceso pesado)

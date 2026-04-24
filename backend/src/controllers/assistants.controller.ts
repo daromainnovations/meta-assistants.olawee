@@ -50,7 +50,8 @@ export class AssistantsController {
             }
 
             // Extraer metadatos de facturación e idempotencia
-            const userId = body.user_id || body.userId || req.headers.get('x-user-id');
+            const rawUserId = body.user_id || body.userId || req.headers.get('x-user-id');
+            const userId = rawUserId ? parseInt(rawUserId as string, 10) : undefined;
             const requestId = body.request_id || body.requestId || req.headers.get('x-request-id');
 
             // Delegar a la capa de servicio de asistentes
