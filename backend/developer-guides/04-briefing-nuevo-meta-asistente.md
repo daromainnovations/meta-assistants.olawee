@@ -18,7 +18,7 @@ Este sistema tiene una arquitectura "sandwich":
 
 ## BASE DE DATOS (PostgreSQL via Prisma)
 
-Schema: "qan8n2.0"
+Schema: "meta"
 Tablas del sistema Meta (ya existen en producción, NO las crear — solo úsalas si necesitas):
   - chatsmeta     → sesiones de chat (session_id, meta_id, titulo, systemprompt_doc, updated_at)
   - mensajesmeta  → mensajes (session_id, message: Json, created_at)
