@@ -1,5 +1,5 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatOpenAI } from '@langchain/openai';
 import { BaseMetaSpecialist } from '../../base-specialist';
 import { MetaContext, MetaResult, MetaStreamEvent } from '../../meta.types';
 import { searchLinkedInProfiles, SearchResult } from './search-service';
@@ -25,11 +25,11 @@ export class LinkedInScouterAgent extends BaseMetaSpecialist {
     protected async *execute(context: MetaContext): AsyncGenerator<MetaStreamEvent, any, unknown> {
         const { userMessage, files, docContext, metaId, model: modelName } = context;
 
-        const model = new ChatGoogleGenerativeAI({
-            apiKey: process.env.GEMINI_API_KEY,
-            model: modelName || 'gemini-2.0-flash',
+        const model = new ChatOpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+            model: 'gpt-4o-mini',
             temperature: 0.2,
-            maxOutputTokens: 8192
+            maxTokens: 8192
         });
 
         // 1. Verificar si tenemos un JD (mensaje o archivos)

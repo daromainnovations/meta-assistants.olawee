@@ -7,7 +7,7 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  schemas   = ["meta_billing", "pruebas_executions", "qan8n2.0"]
+  schemas   = ["meta", "meta_billing", "pruebas_executions", "qan8n2.0"]
 }
 
 model chatsmeta {
@@ -19,7 +19,7 @@ model chatsmeta {
   systemprompt_doc String?
   updated_at       DateTime? @db.Timestamptz(6)
 
-  @@schema("qan8n2.0")
+  @@schema("meta")
 }
 
 model mensajesmeta {
@@ -28,7 +28,7 @@ model mensajesmeta {
   message    Json?
   session_id String?  @db.VarChar
 
-  @@schema("qan8n2.0")
+  @@schema("meta")
 }
 
 model executions {
