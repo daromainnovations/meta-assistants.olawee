@@ -49,8 +49,12 @@ export class AssistantsController {
                 body = await req.json();
             }
 
+            // Extraer metadatos de facturación e idempotencia
+            const userId = body.user_id || body.userId || req.headers.get('x-user-id');
+            const requestId = body.request_id || body.requestId || req.headers.get('x-request-id');
+
             // Delegar a la capa de servicio de asistentes
-            const result = await assistantsService.executeAssistant(metaId, body, files as any);
+            const result = await assistantsService.executeAssistant(metaId, body, files as any, userId, requestId);
 
             // Si el resultado es un ReadableStream (Server-Sent Events), devolverlo directamente con cabeceras
             if (result instanceof ReadableStream) {

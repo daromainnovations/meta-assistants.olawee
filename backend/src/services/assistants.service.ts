@@ -60,8 +60,19 @@ export class AssistantsService {
      * @param body El cuerpo de la solicitud (JSON o form-data fields)
      * @param files Archivos adjuntos si existen
      */
-    async executeAssistant(metaId: string, body: any, files?: GenericFile[]): Promise<any> {
-        console.log(`[AssistantsService] 🚀 Executing Assistant: ${metaId}`);
+    async executeAssistant(metaId: string, body: any, files?: GenericFile[], userId?: string, requestId?: string): Promise<any> {
+        console.log(`[AssistantsService] 🚀 Executing Assistant: ${metaId} (User: ${userId}, Request: ${requestId})`);
+
+        // 1. Control de Cuotas e Idempotencia (Paso previo a cualquier proceso pesado)
+        if (userId && requestId) {
+            try {
+                const { billingService } = await import('./billing.service');
+                await billingService.checkQuota(userId, metaId, requestId);
+            } catch (quotaError: any) {
+                console.warn(`[AssistantsService] 🛑 Quota Blocked: ${quotaError.message}`);
+                return { status: 'error', message: quotaError.message, code: 'QUOTA_EXCEEDED' };
+            }
+        }
 
         let parsedTools: number[] = [];
         if (body.tools) {
@@ -114,6 +125,11 @@ export class AssistantsService {
                     console.error('[AssistantsService] Error saving document context:', e.message);
                 });
             } else {
+                // Si el procesamiento de documentos falla, marcamos el evento como FAILED
+                if (requestId) {
+                    const { billingService } = await import('./billing.service');
+                    billingService.updateEventStatus(requestId, 'FAILED').catch(() => {});
+                }
                 return docResult;
             }
         }
@@ -126,19 +142,34 @@ export class AssistantsService {
             result = await metaHandlerService.processMessage(
                 transformedBody.session_id, transformedBody.chatInput, '',
                 transformedBody.model, transformedBody.history,
-                finalDocumentContext, transformedBody.tools, metaId, files
+                finalDocumentContext, transformedBody.tools, metaId, files,
+                requestId // Pasamos el requestId al handler para que gestione el éxito/error del Stream
             );
 
             let loggableResult = result;
             if (result instanceof ReadableStream) {
                 loggableResult = { status: 'success', message: 'ReadableStream SSE Active' };
+            } else {
+                // Si no es stream (es una respuesta síncrona), marcamos éxito aquí mismo
+                if (requestId) {
+                    const { billingService } = await import('./billing.service');
+                    billingService.updateEventStatus(requestId, 'SUCCESS').catch(() => {});
+                }
             }
+
             executionLoggerService.logExecution(`assistants:${metaId}`, transformedBody, loggableResult, 'SUCCESS', Date.now() - startTime);
             return result;
 
         } catch (error: any) {
             const errorOutput = { status: 'error', message: error.message || error };
             executionLoggerService.logExecution(`assistants:${metaId}`, transformedBody, errorOutput, 'ERROR', Date.now() - startTime, error);
+            
+            // Marcar evento como FAILED en caso de error síncrono
+            if (requestId) {
+                const { billingService } = await import('./billing.service');
+                billingService.updateEventStatus(requestId, 'FAILED').catch(() => {});
+            }
+            
             throw error;
         }
     }
