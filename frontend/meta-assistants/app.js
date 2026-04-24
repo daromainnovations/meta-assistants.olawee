@@ -65,12 +65,12 @@ function renderMarkdown(text) {
 // 🏷️ SPECIALIST INFO — Label dinámico del agente activo
 // ============================================================
 const SPECIALIST_LABELS = {
-    'invoice_checker': { label: '🔍 InvoiceChecker', color: 'text-pink-300' },
-    'doc_comparator': { label: '📄 DocComparator', color: 'text-emerald-300' },
-    'grant_justification': { label: '⚖️ Justificación Subv.', color: 'text-amber-300' },
-    'template_filler': { label: '📝 TemplateFiller', color: 'text-blue-300' },
-    'cv_screening_rrhh': { label: '👤 CVScreener (RRHH)', color: 'text-purple-300' },
-    'linkedin_scouter': { label: '🔍 LinkedIn Scouter', color: 'text-cyan-300' },
+    'invoice-checker': { label: '🔍 InvoiceChecker', color: 'text-pink-300' },
+    'doc-comparator': { label: '📄 DocComparator', color: 'text-emerald-300' },
+    'grant-justification': { label: '⚖️ Justificación Subv.', color: 'text-amber-300' },
+    'template-filler': { label: '📝 TemplateFiller', color: 'text-blue-300' },
+    'cv-screener': { label: '👤 CVScreener (RRHH)', color: 'text-purple-300' },
+    'linkedin-scouter': { label: '🔍 LinkedIn Scouter', color: 'text-cyan-300' },
 };
 
 
@@ -143,11 +143,17 @@ async function sendMessage() {
     const specialistId = specialistSelect ? specialistSelect.value : '';
 
     try {
-        const prefix = window.API_PREFIX || '/';
-        const endpointUrl = `${prefix}meta-assistant-chat`;
+        const prefix = window.API_PREFIX || '/api/v1/assistants/';
+        const metaId = specialistId || 'generic'; // Fallback si no hay especialista
+        const endpointUrl = `${prefix}${metaId}`;
+
+        const requestId = 'req_' + Math.random().toString(36).substring(2, 15);
+        const wpUserId = document.getElementById('wpUserId')?.value || '1';
 
         const formData = new FormData();
         formData.append('session_id', session_id);
+        formData.append('request_id', requestId);
+        formData.append('user_id', wpUserId);
         formData.append('model', model);
         formData.append('chatInput', text);
 
