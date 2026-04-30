@@ -1,5 +1,5 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatOpenAI } from '@langchain/openai';
 import { BaseMetaSpecialist } from '../../base-specialist';
 import { MetaContext, MetaResult, MetaStreamEvent } from '../../meta.types';
 
@@ -18,10 +18,10 @@ export class InvoiceCheckerAgent extends BaseMetaSpecialist {
         console.log(`\n[InvoiceChecker] ▶ Starting audit. Files: ${files.length}, Session: ${sessionId}`);
 
         try {
-            const apiKey = process.env.GEMINI_API_KEY;
-            const model = new ChatGoogleGenerativeAI({
+            const apiKey = process.env.OPENAI_API_KEY;
+            const model = new ChatOpenAI({
                 apiKey,
-                model: modelName || 'gemini-2.0-flash',
+                model: 'gpt-4o-mini',
                 temperature: 0.1
             });
 
@@ -47,16 +47,14 @@ export class InvoiceCheckerAgent extends BaseMetaSpecialist {
 
             // PDFs
             for (const f of categorized.pdfs) {
-                const buffer = f.buffer || (f.arrayBuffer ? Buffer.from(await f.arrayBuffer()) : null);
-                if (buffer) {
-                    contentParts.push({ type: 'media', mimeType: 'application/pdf', data: buffer.toString('base64') });
-                }
+                console.log(`[InvoiceChecker] Saltando PDF binario para OpenAI Vision: ${f.originalname} (Ya leído en texto).`);
             }
             // Imágenes
             for (const f of categorized.images) {
                 const buffer = f.buffer || (f.arrayBuffer ? Buffer.from(await f.arrayBuffer()) : null);
                 if (buffer) {
-                    contentParts.push({ type: 'image_url', image_url: { url: `data:${f.mimetype};base64,${buffer.toString('base64')}` } });
+                    const mimeType = f.originalname.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+                    contentParts.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${buffer.toString('base64')}` } });
                 }
             }
 

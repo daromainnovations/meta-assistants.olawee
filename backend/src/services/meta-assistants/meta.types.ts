@@ -12,7 +12,7 @@ export interface MetaContext {
     files: GenericFile[];
     docContext: string;           // Memoria de Documentos (systemprompt_doc)
     history: BaseMessage[];       // Memoria de Conversación
-    model: string;                // Modelo Gemini configurado
+    model: string;                // Modelo de IA configurado (ej: gpt-4o-mini)
 }
 
 export interface MetaResult {

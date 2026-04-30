@@ -1,5 +1,6 @@
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { documentAnalysisService } from '../../../shared/document-analysis.service';
 import * as xlsx from 'xlsx';
 import * as mammoth from 'mammoth';
 import * as fs from 'fs';
@@ -84,17 +85,30 @@ export async function extractCVsFromFiles(files: GenericFile[]): Promise<Extract
                 throw new Error('Documento Word vacío o ilegible.');
               }
               
-              debugLog(`Llamando a Gemini Text para parsear CVs...`);
-              profiles = await extractCVViaGeminiText(text);
-              debugLog(`Gemini Text éxito. Perfiles extraídos: ${profiles.length}`);
+              debugLog(`Llamando a OpenAI Text para parsear CVs...`);
+              profiles = await extractCVViaOpenAIText(text);
+              debugLog(`OpenAI Text éxito. Perfiles extraídos: ${profiles.length}`);
             } catch (err: any) {
               debugLog(`❌ Error en bloque Word: ${err.message}`);
               console.error(`[CVParser] ❌ Error en Mammoth/Text: ${err.message}`);
               profiles = [];
             }
+          } else if (filename.endsWith('.pdf')) {
+            debugLog(`Iniciando extracción PDF: ${file.originalname}`);
+            try {
+               const text = await documentAnalysisService.transcribePDF(buffer);
+               if (!text || text.trim().length === 0) {
+                 throw new Error('Documento PDF vacío o ilegible.');
+               }
+               debugLog(`Llamando a OpenAI Text para parsear CVs PDF...`);
+               profiles = await extractCVViaOpenAIText(text);
+            } catch (err: any) {
+               debugLog(`❌ Error en bloque PDF: ${err.message}`);
+               profiles = [];
+            }
           } else {
             debugLog(`Iniciando Vision para: ${file.originalname}`);
-            profiles = await extractCVViaGeminiVision(file, buffer);
+            profiles = await extractCVViaOpenAIVision(file, buffer);
             debugLog(`Vision éxito. Perfiles extraídos: ${profiles.length}`);
           }
 
@@ -110,16 +124,16 @@ export async function extractCVsFromFiles(files: GenericFile[]): Promise<Extract
 }
 
 /**
- * 🤖 OCR ESPECIALIZADO EN CVs CON GEMINI VISION
+ * 🤖 OCR ESPECIALIZADO EN CVs CON OPENAI VISION
  */
-async function extractCVViaGeminiVision(file: GenericFile, buffer: Buffer): Promise<CVProfile[]> {
-  const visionModel = new ChatGoogleGenerativeAI({
-    model: 'gemini-2.0-flash',
-    apiKey: process.env.GEMINI_API_KEY,
+async function extractCVViaOpenAIVision(file: GenericFile, buffer: Buffer): Promise<CVProfile[]> {
+  const visionModel = new ChatOpenAI({
+    model: 'gpt-4o-mini',
+    apiKey: process.env.OPENAI_API_KEY,
     temperature: 0,
   });
 
-  const mimeType = file.originalname.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+  const mimeType = file.originalname.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
   const b64Data = buffer.toString('base64');
 
   const message = new HumanMessage({
@@ -157,7 +171,7 @@ Estructura esperada:
       },
       {
         type: 'image_url',
-        image_url: `data:${mimeType};base64,${b64Data}`
+        image_url: { url: `data:${mimeType};base64,${b64Data}` }
       }
     ]
   });
@@ -188,12 +202,12 @@ Estructura esperada:
 }
 
 /**
- * 🤖 EXTRACCIÓN DESDE TEXTO (WORD/DOCX) CON GEMINI FLASH
+ * 🤖 EXTRACCIÓN DESDE TEXTO (WORD/DOCX/PDF) CON OPENAI
  */
-async function extractCVViaGeminiText(text: string): Promise<CVProfile[]> {
-  const model = new ChatGoogleGenerativeAI({
-    model: 'gemini-2.0-flash',
-    apiKey: process.env.GEMINI_API_KEY,
+async function extractCVViaOpenAIText(text: string): Promise<CVProfile[]> {
+  const model = new ChatOpenAI({
+    model: 'gpt-4o-mini',
+    apiKey: process.env.OPENAI_API_KEY,
     temperature: 0,
   });
 
