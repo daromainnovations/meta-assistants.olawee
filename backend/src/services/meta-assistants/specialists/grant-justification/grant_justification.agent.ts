@@ -173,11 +173,19 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
       // ─────────────────────────────────────────
       let toolCall: { name: string; args: any } | null = null;
 
-      if (response.additional_kwargs?.tool_calls?.length > 0) {
-        const tc = response.additional_kwargs.tool_calls[0];
-        toolCall = { name: tc.function.name, args: JSON.parse(tc.function.arguments) };
+      const toolCalls = response.additional_kwargs?.tool_calls;
+
+      if (Array.isArray(toolCalls) && toolCalls.length > 0) {
+        const tc = toolCalls[0];
+        toolCall = {
+          name: tc.function.name,
+          args: JSON.parse(tc.function.arguments),
+        };
       } else if (Array.isArray(response.content)) {
-        const callPart = response.content.find((p: any) => p.type === 'functionCall' || p.functionCall);
+        const callPart = response.content.find(
+          (p: any) => p.type === 'functionCall' || p.functionCall
+        );
+
         if (callPart) {
           const fc = callPart.functionCall || callPart;
           toolCall = { name: fc.name, args: fc.args };

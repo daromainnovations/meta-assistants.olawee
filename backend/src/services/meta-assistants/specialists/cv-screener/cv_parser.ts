@@ -54,55 +54,55 @@ export async function extractCVsFromFiles(files: GenericFile[]): Promise<Extract
     const filename = file.originalname.toLowerCase();
 
     if (filename.endsWith('.pdf') || filename.endsWith('.jpg') || filename.endsWith('.jpeg') || filename.endsWith('.png') || filename.endsWith('.docx')) {
-        try {
-          if (visionCallCount > 0) {
-            await new Promise(resolve => setTimeout(resolve, 1200));
-          }
-          visionCallCount++;
-
-          let profiles: CVProfile[] = [];
-          
-          // Obtener Buffer unificado
-          let buffer: Buffer;
-          if (file.buffer) {
-            buffer = file.buffer;
-          } else if (file.arrayBuffer) {
-            buffer = Buffer.from(await file.arrayBuffer());
-          } else {
-            throw new Error(`No se pudo obtener el buffer para ${file.originalname}`);
-          }
-
-          if (filename.endsWith('.docx')) {
-            debugLog(`Iniciando extracción Word: ${file.originalname}`);
-            try {
-              debugLog(`Llamando a Mammoth... (Buffer size: ${buffer.length})`);
-              const { value: text } = await mammoth.extractRawText({ buffer: buffer });
-              debugLog(`Mammoth éxito. Texto obtenido (${text.length} chars).`);
-              
-              if (!text || text.trim().length === 0) {
-                debugLog(`⚠️ Texto de Word vacío.`);
-                throw new Error('Documento Word vacío o ilegible.');
-              }
-              
-              debugLog(`Llamando a Gemini Text para parsear CVs...`);
-              profiles = await extractCVViaGeminiText(text);
-              debugLog(`Gemini Text éxito. Perfiles extraídos: ${profiles.length}`);
-            } catch (err: any) {
-              debugLog(`❌ Error en bloque Word: ${err.message}`);
-              console.error(`[CVParser] ❌ Error en Mammoth/Text: ${err.message}`);
-              profiles = [];
-            }
-          } else {
-            debugLog(`Iniciando Vision para: ${file.originalname}`);
-            profiles = await extractCVViaGeminiVision(file, buffer);
-            debugLog(`Vision éxito. Perfiles extraídos: ${profiles.length}`);
-          }
-
-          results.push({ filename: file.originalname, profiles });
-        } catch (error: any) {
-          console.error(`[CVParser] ❌ Error crítico en archivo ${file.originalname}: ${error.message}`);
-          results.push({ filename: file.originalname, profiles: [], error: error.message });
+      try {
+        if (visionCallCount > 0) {
+          await new Promise(resolve => setTimeout(resolve, 1200));
         }
+        visionCallCount++;
+
+        let profiles: CVProfile[] = [];
+
+        // Obtener Buffer unificado
+        let buffer: Buffer;
+        if (file.buffer) {
+          buffer = file.buffer;
+        } else if (file.arrayBuffer) {
+          buffer = Buffer.from(await file.arrayBuffer());
+        } else {
+          throw new Error(`No se pudo obtener el buffer para ${file.originalname}`);
+        }
+
+        if (filename.endsWith('.docx')) {
+          debugLog(`Iniciando extracción Word: ${file.originalname}`);
+          try {
+            debugLog(`Llamando a Mammoth... (Buffer size: ${buffer.length})`);
+            const { value: text } = await mammoth.extractRawText({ buffer: buffer });
+            debugLog(`Mammoth éxito. Texto obtenido (${text.length} chars).`);
+
+            if (!text || text.trim().length === 0) {
+              debugLog(`⚠️ Texto de Word vacío.`);
+              throw new Error('Documento Word vacío o ilegible.');
+            }
+
+            debugLog(`Llamando a Gemini Text para parsear CVs...`);
+            profiles = await extractCVViaGeminiText(text);
+            debugLog(`Gemini Text éxito. Perfiles extraídos: ${profiles.length}`);
+          } catch (err: any) {
+            debugLog(`❌ Error en bloque Word: ${err.message}`);
+            console.error(`[CVParser] ❌ Error en Mammoth/Text: ${err.message}`);
+            profiles = [];
+          }
+        } else {
+          debugLog(`Iniciando Vision para: ${file.originalname}`);
+          profiles = await extractCVViaGeminiVision(file, buffer);
+          debugLog(`Vision éxito. Perfiles extraídos: ${profiles.length}`);
+        }
+
+        results.push({ filename: file.originalname, profiles });
+      } catch (error: any) {
+        console.error(`[CVParser] ❌ Error crítico en archivo ${file.originalname}: ${error.message}`);
+        results.push({ filename: file.originalname, profiles: [], error: error.message });
+      }
     }
   }
 

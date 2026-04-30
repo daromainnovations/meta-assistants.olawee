@@ -1,10 +1,10 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { BaseMetaSpecialist } from '../../base-specialist';
 import { MetaContext, MetaResult, MetaStreamEvent } from '../../meta.types';
 import { metaMemoryService } from '../../meta-memory.service';
 import { extractCVsFromFiles } from './cv_parser';
 import { RankingGenerator, RankingResult } from './ranking_generator';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 
 const SYSTEM_PROMPT = `👤 Eres OLAWEE CV-Screener, el headhunter digital experto.
 
