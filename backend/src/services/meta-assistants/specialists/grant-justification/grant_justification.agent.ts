@@ -196,7 +196,7 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
         );
 
         if (callPart) {
-          const fc = callPart.functionCall || callPart;
+          const fc = (callPart.functionCall || callPart) as any;
           toolCall = { name: fc.name, args: fc.args };
         }
       }
