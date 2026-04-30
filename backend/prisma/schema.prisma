@@ -55,13 +55,17 @@ model UserProfile {
 }
 
 model UsageEvent {
-  request_id String      @id
-  user_id    Int
-  meta_id    String
-  status     String      @default("STARTED")
-  created_at DateTime    @default(now()) @db.Timestamptz(6)
-  updated_at DateTime    @updatedAt @db.Timestamptz(6)
-  user       UserProfile @relation(fields: [user_id], references: [id])
+  request_id    String      @id
+  user_id       Int
+  meta_id       String
+  status        String      @default("STARTED")
+  tokens_input  Int?        @default(0)
+  tokens_output Int?        @default(0)
+  cost_usd      Decimal?    @db.Decimal(10, 6)
+  model_used    String?
+  created_at    DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime    @updatedAt @db.Timestamptz(6)
+  user          UserProfile @relation(fields: [user_id], references: [id])
 
   @@index([user_id, meta_id])
   @@schema("meta_billing")

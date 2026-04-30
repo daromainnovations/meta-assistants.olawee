@@ -228,10 +228,11 @@ export class MetaHandlerService {
                     // FIN DEL FLUJO SSE
                     emitEvent({ type: 'done', data: specialistResult });
 
-                    // Marcamos éxito en facturación
+                    // Marcamos éxito en facturación con métricas reales
                     if (requestId) {
                         const { billingService } = await import('../billing.service');
-                        billingService.updateEventStatus(requestId, 'SUCCESS').catch(() => {});
+                        const usage = specialistResult?.metadata?.usage;
+                        await billingService.updateEventStatus(requestId, 'SUCCESS', usage);
                     }
 
                 } catch (err: any) {

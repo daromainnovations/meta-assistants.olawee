@@ -10,21 +10,20 @@ export class BillingService {
       throw new Error('Faltan parámetros obligatorios para el control de cuotas (userId, metaId, requestId).');
     }
 
-    // 1. Obtener la definición del asistente del catálogo
+    // 1. Obtener la definición del asistente del catálogo (MODO ESTRICTO)
     const assistant = await prisma.metaAssistantCatalog.findUnique({
       where: { meta_id: metaId }
     });
 
     if (!assistant) {
-      // Si no está en el catálogo, lo permitimos pero avisamos (podrías bloquearlo si quieres ser estricto)
-      console.warn(`[BillingService] ⚠️ Asistente "${metaId}" no registrado en el catálogo.`);
-      return;
+      console.error(`[BillingService] 🛑 Bloqueo: Asistente "${metaId}" no registrado en el catálogo.`);
+      throw new Error(`Asistente no autorizado: El ID "${metaId}" no existe en el catálogo oficial.`);
     }
 
     // 2. Control de Asistentes PRIVADOS
     if (assistant.access_type === 'PRIVATE') {
       if (assistant.owner_id !== userId) {
-        throw new Error(`Acceso Denegado: Este asistente es privado y solo puede ser usado por su propietario.`);
+        throw new Error(`Acceso Denegado: Este asistente es privado.`);
       }
     }
 
@@ -35,7 +34,7 @@ export class BillingService {
       create: { id: userId, plan_type: 'FREE' }
     });
 
-    // 4. Idempotencia: Verificar si el evento ya existe
+    // 4. Idempotencia
     const existingEvent = await prisma.usageEvent.findUnique({
       where: { request_id: requestId }
     });
@@ -43,32 +42,24 @@ export class BillingService {
       return;
     }
 
-    // 5. Lógica de Cobro / Trial si es PREMIUM
+    // 5. Lógica de Cobro / Trial
     if (assistant.is_premium) {
-      // 5.1 Verificar si el usuario ha COMPRADO el acceso (UNLIMITED)
       const hasAccess = await prisma.userAccess.findUnique({
         where: { user_id_meta_id: { user_id: userId, meta_id: metaId } }
       });
 
       if (!hasAccess) {
-        // 5.2 Si no ha comprado, verificamos la prueba gratuita (5 usos exitosos)
         const successCount = await prisma.usageEvent.count({
-          where: {
-            user_id: userId,
-            meta_id: metaId,
-            status: 'SUCCESS'
-          }
+          where: { user_id: userId, meta_id: metaId, status: 'SUCCESS' }
         });
 
         if (successCount >= 5) {
-          throw new Error(`Has alcanzado el límite de 5 usos gratuitos para el asistente Premium "${assistant.name}". Por favor, cómpralo para continuar.`);
+          throw new Error(`Límite de prueba alcanzado (5/5). Por favor, adquiere el asistente "${assistant.name}" para continuar.`);
         }
-        
-        console.log(`[BillingService] 🎁 Trial en uso (${successCount + 1}/5) para ${userId} en ${metaId}`);
       }
     }
 
-    // 6. Registrar el inicio de la ejecución
+    // 6. Registrar inicio
     await prisma.usageEvent.upsert({
       where: { request_id: requestId },
       update: { status: 'STARTED' },
@@ -82,16 +73,33 @@ export class BillingService {
   }
 
   /**
-   * Actualiza el estado al finalizar (Success o Failure).
+   * Actualiza el estado al finalizar con métricas de consumo.
    */
-  async updateEventStatus(requestId: string, status: 'SUCCESS' | 'FAILED' | 'CANCELLED'): Promise<void> {
+  async updateEventStatus(
+    requestId: string, 
+    status: 'SUCCESS' | 'FAILED' | 'CANCELLED',
+    usage?: { tokens_input?: number; tokens_output?: number; model?: string }
+  ): Promise<void> {
     try {
+      // Calcular coste estimado (Gemini 2.0 Flash aprox: $0.10/1M input, $0.40/1M output)
+      let cost = 0;
+      if (usage?.tokens_input && usage?.tokens_output) {
+        const inputCost = (usage.tokens_input / 1_000_000) * 0.10;
+        const outputCost = (usage.tokens_output / 1_000_000) * 0.40;
+        cost = inputCost + outputCost;
+      }
+
       const event = await prisma.usageEvent.update({
         where: { request_id: requestId },
-        data: { status }
+        data: { 
+          status,
+          tokens_input: usage?.tokens_input || 0,
+          tokens_output: usage?.tokens_output || 0,
+          model_used: usage?.model || 'unknown',
+          cost_usd: cost
+        }
       });
 
-      // Incrementar popularidad solo en éxitos
       if (status === 'SUCCESS') {
         await prisma.metaAssistantCatalog.update({
           where: { meta_id: event.meta_id },
