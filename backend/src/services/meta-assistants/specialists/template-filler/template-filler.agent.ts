@@ -1,5 +1,5 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatOpenAI } from '@langchain/openai';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { BaseMetaSpecialist } from '../../base-specialist';
@@ -19,10 +19,10 @@ export class TemplateFillerAgent extends BaseMetaSpecialist {
         console.log(`\n[TemplateFiller] ▶ Modo Estructural: ${sessionId}`);
 
         try {
-            const apiKey = process.env.GEMINI_API_KEY;
-            const model = new ChatGoogleGenerativeAI({
+            const apiKey = process.env.OPENAI_API_KEY;
+            const model = new ChatOpenAI({
                 apiKey,
-                model: modelName || 'gemini-2.0-flash',
+                model: 'gpt-4o-mini',
                 temperature: 0
             });
 

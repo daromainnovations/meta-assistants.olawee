@@ -76,7 +76,7 @@ export class LinkedInScouterAgent extends BaseMetaSpecialist {
                 };
             }
 
-            // 4. Ranking de perfiles con Gemini
+            // 4. Ranking de perfiles con OpenAI
             console.log(`[LinkedInScouter] Ranking de ${results.length} resultados...`);
             yield { type: 'status', message: `Se han encontrado ${results.length} candidatos potenciales. Evaluando perfiles e idoneidad...` };
             const rankingPrompt = `Dados los siguientes resultados brutos de búsqueda de LinkedIn, compáralos con la oferta original y selecciona a los candidatos más relevantes.

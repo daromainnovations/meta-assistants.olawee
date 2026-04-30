@@ -11,7 +11,7 @@ Tu agente **DEBE** extender la clase `BaseMetaSpecialist`. Esto te garantiza acc
 
 ```typescript
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatOpenAI } from '@langchain/openai';
 import { BaseMetaSpecialist } from '../../base-specialist';
 import { MetaContext, MetaResult } from '../../meta.types';
 
@@ -25,9 +25,9 @@ export class MiEspecialistaAgent extends BaseMetaSpecialist {
         const { userMessage, history, docContext, files, model: modelName } = context;
 
         // 1. Configurar modelo
-        const model = new ChatGoogleGenerativeAI({
-            apiKey: process.env.GEMINI_API_KEY,
-            model: modelName || 'gemini-2.0-flash'
+        const model = new ChatOpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+            model: 'gpt-4o-mini'
         });
 
         // 2. Preparar prompts y contenido (incluyendo archivos si los hay)

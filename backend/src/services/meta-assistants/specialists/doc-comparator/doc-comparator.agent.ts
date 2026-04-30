@@ -1,5 +1,5 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatOpenAI } from '@langchain/openai';
 import { BaseMetaSpecialist } from '../../base-specialist';
 import { MetaContext, MetaResult, MetaStreamEvent } from '../../meta.types';
 
@@ -15,10 +15,10 @@ export class DocComparatorAgent extends BaseMetaSpecialist {
         console.log(`\n[DocComparator] ▶ Starting analysis. Files: ${files.length}, Session: ${sessionId}`);
 
         try {
-            const apiKey = process.env.GEMINI_API_KEY;
-            const model = new ChatGoogleGenerativeAI({
+            const apiKey = process.env.OPENAI_API_KEY;
+            const model = new ChatOpenAI({
                 apiKey,
-                model: modelName || 'gemini-2.0-flash',
+                model: 'gpt-4o',
                 temperature: 0.1
             });
 
@@ -41,17 +41,16 @@ export class DocComparatorAgent extends BaseMetaSpecialist {
 
             contentParts.push({ type: 'text', text: textContext });
 
-            // Añadir PDFs y Imágenes inline (Gemini Pro Vision / 2.0 Flash)
+            // Añadir Imágenes inline (OpenAI Vision). PDFs se saltan porque OpenAI no los lee como buffer de imagen,
+            // pero ya tenemos su texto en docContext gracias al processDocuments()
             for (const pdf of categorized.pdfs) {
-                const buffer = pdf.buffer || (pdf.arrayBuffer ? Buffer.from(await pdf.arrayBuffer()) : null);
-                if (buffer) {
-                    contentParts.push({ type: 'media', mimeType: 'application/pdf', data: buffer.toString('base64') });
-                }
+                console.log(`[DocComparator] Saltando PDF binario para OpenAI Vision: ${pdf.originalname} (Ya leído en texto).`);
             }
             for (const img of categorized.images) {
                 const buffer = img.buffer || (img.arrayBuffer ? Buffer.from(await img.arrayBuffer()) : null);
                 if (buffer) {
-                    contentParts.push({ type: 'image_url', image_url: { url: `data:${img.mimetype};base64,${buffer.toString('base64')}` } });
+                    const mimeType = img.originalname.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+                    contentParts.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${buffer.toString('base64')}` } });
                 }
             }
 
