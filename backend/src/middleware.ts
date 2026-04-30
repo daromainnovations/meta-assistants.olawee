@@ -4,7 +4,9 @@ import type { NextRequest } from 'next/server';
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:5174',
-    'https://app.olawee.com'
+    'https://app.olawee.com',
+    'https://staging.olawee.com',
+    'https://api.olawee.com',
 ];
 
 export function middleware(request: NextRequest) {
