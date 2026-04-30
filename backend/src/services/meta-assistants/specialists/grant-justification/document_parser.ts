@@ -1,5 +1,6 @@
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { HumanMessage } from '@langchain/core/messages';
+import { ChatOpenAI } from '@langchain/openai';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { documentAnalysisService } from '../../../shared/document-analysis.service';
 import * as xlsx from 'xlsx';
 import { GenericFile } from '../../../shared/document.service';
 
@@ -38,19 +39,26 @@ export async function extractDataFromFiles(files: GenericFile[]): Promise<Extrac
         continue;
     }
 
-    // === PDF / Imágenes: OCR con Gemini Vision ===
+    // === PDF / Imágenes: OCR ===
     if (filename.endsWith('.pdf') || filename.endsWith('.jpg') || filename.endsWith('.jpeg') || filename.endsWith('.png')) {
       try {
-        // ⏳ Throttle: esperar 1.2s entre llamadas a Gemini Vision para evitar rate limit (429)
-        if (visionCallCount > 0) {
-          await new Promise(resolve => setTimeout(resolve, 1200));
+        if (filename.endsWith('.pdf')) {
+          console.log(`[DocumentParser] 🔍 Extrayendo texto PDF: ${file.originalname}`);
+          const text = await documentAnalysisService.transcribePDF(buffer);
+          if (text && text.trim().length > 0) {
+             const { structured } = await extractViaOpenAIText(text);
+             result.pdfTexts.push({ filename: file.originalname, text, structured });
+             console.log(`[DocumentParser] ✅ Extraído: ${file.originalname} | Factura: ${structured?.numFactura || 'N/A'} | Total: ${structured?.total || 'N/A'}`);
+          } else {
+             result.pdfTexts.push({ filename: file.originalname, text: '(Documento vacío o ilegible)' });
+          }
+        } else {
+          // Para imágenes, usamos OCR de OpenAI Vision
+          console.log(`[DocumentParser] 🔍 Extrayendo con OpenAI Vision: ${file.originalname}`);
+          const { text, structured } = await extractViaOpenAIVision(file, buffer);
+          result.pdfTexts.push({ filename: file.originalname, text, structured });
+          console.log(`[DocumentParser] ✅ Extraído: ${file.originalname} | Factura: ${structured?.numFactura || 'N/A'} | Total: ${structured?.total || 'N/A'}`);
         }
-        visionCallCount++;
-
-        console.log(`[DocumentParser] 🔍 [${visionCallCount}] Extrayendo con Gemini Vision: ${file.originalname}`);
-        const { text, structured } = await extractViaGeminiVision(file, buffer);
-        result.pdfTexts.push({ filename: file.originalname, text, structured });
-        console.log(`[DocumentParser] ✅ Extraído: ${file.originalname} | Factura: ${structured?.numFactura || 'N/A'} | Total: ${structured?.total || 'N/A'}`);
       } catch (error: any) {
         console.error(`[DocumentParser] ❌ Error OCR ${file.originalname}: ${error.message}`);
         result.pdfTexts.push({ filename: file.originalname, text: '(Error de lectura del documento)' });
@@ -76,17 +84,16 @@ export async function extractDataFromFiles(files: GenericFile[]): Promise<Extrac
 }
 
 /**
- * 🤖 OCR CON GEMINI VISION (Alta Fidelidad)
- * Extrae texto Y estructura datos de facturas en JSON.
+ * 🤖 OCR CON OPENAI VISION (Alta Fidelidad) para Imágenes
  */
-async function extractViaGeminiVision(file: GenericFile, buffer: Buffer): Promise<{ text: string; structured: InvoiceData }> {
-  const visionModel = new ChatGoogleGenerativeAI({
-    model: 'gemini-2.0-flash',
-    apiKey: process.env.GEMINI_API_KEY,
+async function extractViaOpenAIVision(file: GenericFile, buffer: Buffer): Promise<{ text: string; structured: InvoiceData }> {
+  const visionModel = new ChatOpenAI({
+    model: 'gpt-4o',
+    apiKey: process.env.OPENAI_API_KEY,
     temperature: 0,
   });
 
-  const mimeType = file.originalname.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+  const mimeType = file.originalname.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
   const b64Data = buffer.toString('base64');
 
   const message = new HumanMessage({
@@ -114,7 +121,7 @@ Si algún campo no está disponible, usa null. Los importes deben ser números, 
       },
       {
         type: 'image_url',
-        image_url: `data:${mimeType};base64,${b64Data}`
+        image_url: { url: `data:${mimeType};base64,${b64Data}` }
       }
     ]
   });
@@ -148,4 +155,61 @@ Si algún campo no está disponible, usa null. Los importes deben ser números, 
   }
 
   return { text: fullText, structured };
+}
+
+/**
+ * 🤖 EXTRACCIÓN ESTRUCTURADA DESDE TEXTO (Para PDFs)
+ */
+async function extractViaOpenAIText(text: string): Promise<{ text: string; structured: InvoiceData }> {
+  const model = new ChatOpenAI({
+    model: 'gpt-4o',
+    apiKey: process.env.OPENAI_API_KEY,
+    temperature: 0,
+  });
+
+  const prompt = `Analiza este texto extraído de un documento de justificación de gasto (factura, recibo, ticket o justificante de pago).
+  
+Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura (sin markdown, sin explicaciones extra):
+{
+  "numFactura": "número o referencia de la factura",
+  "proveedor": "nombre del proveedor/emisor",
+  "nif": "NIF/CIF del proveedor si aparece",
+  "fecha": "fecha de la factura en formato DD/MM/YYYY",
+  "concepto": "descripción del gasto o servicio",
+  "baseImponible": 0.00,
+  "iva": 0.00,
+  "retencion": 0.00,
+  "total": 0.00,
+  "formaPago": "transferencia / efectivo / tarjeta / etc.",
+  "textoCompleto": "todo el texto visible en el documento"
+}
+
+Si algún campo no está disponible, usa null. Los importes deben ser números, no strings.
+
+TEXTO DEL DOCUMENTO:
+${text}`;
+
+  const response = await model.invoke([new HumanMessage(prompt)]);
+  const rawText = response.content.toString().trim();
+  const jsonText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+
+  let structured: InvoiceData = {};
+  
+  try {
+    const parsed = JSON.parse(jsonText);
+    structured = {
+      numFactura: parsed.numFactura,
+      proveedor: parsed.proveedor,
+      fecha: parsed.fecha,
+      baseImponible: typeof parsed.baseImponible === 'number' ? parsed.baseImponible : parseFloat(parsed.baseImponible) || undefined,
+      iva: typeof parsed.iva === 'number' ? parsed.iva : parseFloat(parsed.iva) || undefined,
+      total: typeof parsed.total === 'number' ? parsed.total : parseFloat(parsed.total) || undefined,
+      concepto: parsed.concepto,
+      nif: parsed.nif,
+    };
+  } catch {
+    console.warn(`[DocumentParser] ⚠️ No se pudo parsear JSON desde texto.`);
+  }
+
+  return { text, structured };
 }

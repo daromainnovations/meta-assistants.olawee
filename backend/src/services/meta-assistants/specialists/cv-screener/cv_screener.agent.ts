@@ -1,10 +1,10 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { ChatOpenAI } from '@langchain/openai';
 import { BaseMetaSpecialist } from '../../base-specialist';
 import { MetaContext, MetaResult, MetaStreamEvent } from '../../meta.types';
 import { metaMemoryService } from '../../meta-memory.service';
 import { extractCVsFromFiles } from './cv_parser';
 import { RankingGenerator, RankingResult } from './ranking_generator';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 
 const SYSTEM_PROMPT = `👤 Eres OLAWEE CV-Screener, el headhunter digital experto.
 
@@ -31,7 +31,7 @@ export class CVScreenerAgent extends BaseMetaSpecialist {
 
   protected async *execute(context: MetaContext): AsyncGenerator<MetaStreamEvent, any, unknown> {
     const { userMessage, files, sessionId, docContext, metaId, model: modelName } = context;
-    const model = new ChatGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY, model: modelName || 'gemini-2.0-flash', temperature: 0 });
+    const model = new ChatOpenAI({ apiKey: process.env.OPENAI_API_KEY, model: 'gpt-4o-mini', temperature: 0 });
 
     try {
       // 1. Extracción de perfiles (Asegurar que siempre procesamos los archivos de la sesión)

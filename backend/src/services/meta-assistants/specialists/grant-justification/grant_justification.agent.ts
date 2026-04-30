@@ -1,5 +1,5 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatOpenAI } from '@langchain/openai';
 import { metaMemoryService } from '../../meta-memory.service';
 import { BaseMetaSpecialist } from '../../base-specialist';
 import { MetaContext, MetaResult, MetaStreamEvent } from '../../meta.types';
@@ -100,15 +100,16 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
       // ─────────────────────────────────────────
       // PASO 2: MODELO CON TOOL CALLING
       // ─────────────────────────────────────────
-      const apiKey = process.env.GEMINI_API_KEY;
-      const model = new ChatGoogleGenerativeAI({
+      const apiKey = process.env.OPENAI_API_KEY;
+      const model = new ChatOpenAI({
         apiKey,
-        model: modelName || 'gemini-2.0-flash',
+        model: 'gpt-4o',
         temperature: 0
       });
 
-      const modelWithTools = (model as any).bindTools([{
-        function_declarations: [{
+      const modelWithTools = model.bindTools([{
+        type: 'function',
+        function: {
           name: 'actualizar_hoja_excel',
           description: 'Añade uno o varios registros de gasto a la hoja Excel de seguimiento del proyecto.',
           parameters: {
@@ -149,7 +150,7 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
             },
             required: ['registro']
           }
-        }]
+        }
       }]);
 
       // Construir prompt final
@@ -167,6 +168,14 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
 
       yield { type: 'status', message: 'Auditando justificantes con expediente histórico...' };
       const response = await modelWithTools.invoke(messages);
+
+      // Extraer metadatos de consumo (Tokens)
+      const tokenUsage = (response as any).response_metadata?.tokenUsage;
+      const usageInfo = {
+        tokens_input: tokenUsage?.promptTokens || 0,
+        tokens_output: tokenUsage?.completionTokens || 0,
+        model: 'gpt-4o'
+      };
 
       // ─────────────────────────────────────────
       // PASO 3: MANEJO DE TOOL CALLS
@@ -246,7 +255,8 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
             buffer: editResult,
             mimetype: excelFile.mimetype
           }],
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          metadata: { usage: usageInfo }
         };
       }
 
@@ -263,7 +273,8 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
         status: 'success',
         ai_response: aiText,
         specialist: metaId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        metadata: { usage: usageInfo }
       };
 
     } catch (error: any) {
