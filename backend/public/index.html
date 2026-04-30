@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OLAWEE IA - Selección de Entorno</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="/config.js"></script>
+</head>
+
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans flex items-center justify-center p-4">
+
+    <div class="max-w-3xl w-full">
+        <div class="text-center mb-12">
+            <h1
+                class="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 mb-4 tracking-tight">
+                OLAWEE QA Agent
+            </h1>
+            <p class="text-gray-400 text-lg">Central de Pruebas de Inteligencia Artificial</p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-8">
+
+            <!-- Tarjeta META Assistants -->
+            <a href="/meta-assistants/index.html"
+                class="group block relative rounded-2xl p-1 bg-gradient-to-br from-pink-500/50 to-violet-600/50 hover:from-pink-400 hover:to-violet-500 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl hover:shadow-pink-500/30">
+                <div
+                    class="absolute rounded-xl -inset-px bg-gradient-to-br from-white/10 to-transparent pointer-events-none">
+                </div>
+                <div
+                    class="h-full bg-gray-900/90 rounded-xl p-8 flex flex-col items-center text-center relative overflow-hidden group-hover:bg-gray-900/80 transition-colors">
+
+                    <!-- Badge META -->
+                    <span
+                        class="absolute top-4 right-4 text-xs font-bold bg-pink-500/20 border border-pink-400/40 text-pink-300 px-2.5 py-1 rounded-full tracking-widest">
+                        ● META
+                    </span>
+
+                    <div
+                        class="w-20 h-20 rounded-2xl bg-gradient-to-br from-pink-500 to-violet-600 flex items-center justify-center mb-6 shadow-lg rotate-3 group-hover:rotate-6 transition-transform">
+                        <i class="fa-solid fa-flask text-3xl text-white"></i>
+                    </div>
+
+                    <h2 class="text-2xl font-bold text-white mb-3">Lab Meta: Agentes Especializados</h2>
+                    <p class="text-gray-400 mb-6 leading-relaxed max-w-2xl">
+                        Sistema centralizado de agentes expertos con webhooks dedicados. Actualmente incluye verificadores de facturas, cribado de currículums, comparadores de documentos y más.
+                    </p>
+
+                    <div
+                        class="mt-auto inline-flex items-center gap-2 text-pink-400 font-semibold group-hover:text-pink-300">
+                        Acceder al Lab Meta <i
+                            class="fa-solid fa-arrow-right transition-transform group-hover:translate-x-1"></i>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Tarjeta ADMIN Panel -->
+            <a href="/admin/index.html"
+                class="group block relative rounded-2xl p-1 bg-gradient-to-br from-gray-500/50 to-gray-600/50 hover:from-gray-400 hover:to-gray-500 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl hover:shadow-gray-500/30">
+                <div
+                    class="absolute rounded-xl -inset-px bg-gradient-to-br from-white/10 to-transparent pointer-events-none">
+                </div>
+                <div
+                    class="h-full bg-gray-900/90 rounded-xl p-8 flex flex-col items-center text-center relative overflow-hidden group-hover:bg-gray-900/80 transition-colors">
+
+                    <div
+                        class="w-20 h-20 rounded-2xl bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center mb-6 shadow-lg transition-transform">
+                        <i class="fa-solid fa-server text-3xl text-white"></i>
+                    </div>
+
+                    <h2 class="text-2xl font-bold text-white mb-3">Panel de Administración (Logs)</h2>
+                    <p class="text-gray-400 mb-6 leading-relaxed max-w-2xl">
+                        Visor global de ejecuciones para auditar, depurar y monitorizar todo el tráfico entrante de los diferentes Meta-Asistentes integrados.
+                    </p>
+
+                    <div
+                        class="mt-auto inline-flex items-center gap-2 text-gray-400 font-semibold group-hover:text-gray-300">
+                        Abrir Visor de Ejecuciones <i
+                            class="fa-solid fa-arrow-right transition-transform group-hover:translate-x-1"></i>
+                    </div>
+                </div>
+            </a>
+
+        </div>
+
+        <div class="mt-12 text-center text-sm text-gray-500 flex justify-center items-center gap-2">
+            <i class="fa-solid fa-shield-halved"></i> Entorno de Prueba Seguro V2.0
+        </div>
+    </div>
+
+</body>
+
+</html>

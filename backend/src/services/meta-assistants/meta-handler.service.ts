@@ -81,7 +81,8 @@ export class MetaHandlerService {
         documentContext: string, // Contexto que viene de la API (transcripción fresca)
         toolsArray: number[] = [],
         metaId?: string,
-        files?: GenericFile[]
+        files?: GenericFile[],
+        requestId?: string // Añadimos requestId para el tracking de facturación
     ): Promise<any> {
 
         if (!metaId) {
@@ -227,6 +228,12 @@ export class MetaHandlerService {
                     // FIN DEL FLUJO SSE
                     emitEvent({ type: 'done', data: specialistResult });
 
+                    // Marcamos éxito en facturación
+                    if (requestId) {
+                        const { billingService } = await import('../billing.service');
+                        billingService.updateEventStatus(requestId, 'SUCCESS').catch(() => {});
+                    }
+
                 } catch (err: any) {
                     console.error(`[MetaHandler] ❌ Error fatal en ejecución del especialista ${metaId}:`, err.message);
                     const errorResult = {
@@ -236,6 +243,12 @@ export class MetaHandlerService {
                         timestamp: new Date().toISOString()
                     };
                     emitEvent({ type: 'done', data: errorResult });
+
+                    // Marcamos fallo en facturación
+                    if (requestId) {
+                        const { billingService } = await import('../billing.service');
+                        billingService.updateEventStatus(requestId, 'FAILED').catch(() => {});
+                    }
                 } finally {
                     streamController.close();
                 }

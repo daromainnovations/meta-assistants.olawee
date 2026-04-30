@@ -7,12 +7,9 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  schemas   = ["meta", "pruebas_executions"]
+  schemas   = ["meta", "meta_billing", "pruebas_executions"]
 }
 
-// ============================================================
-// 🤖 META ASSISTANTS — Tablas de chat y mensajes
-// ============================================================
 model chatsmeta {
   id               BigInt    @id @default(autoincrement())
   created_at       DateTime  @default(now()) @db.Timestamptz(6)
@@ -34,29 +31,87 @@ model mensajesmeta {
   @@schema("meta")
 }
 
+model MetaAssistantCatalog {
+  meta_id     String  @id
+  name        String
+  description String?
+  category    String
+  is_premium  Boolean @default(false)
+  access_type String  @default("PUBLIC")
+  owner_id    Int?
+  total_uses  Int     @default(0)
 
-// ============================================================
-// 🛡️ EXECUTIONS — Tabla Unificada de Control de Ejecuciones
-// ============================================================
-// Registra todas las ejecuciones del sistema Meta:
-//   category  → 'meta'
-//   provider  → meta_id del especialista (ej. 'invoice_checker')
-//   environment → 'staging' | 'production'
-//   status    → 'SUCCESS' | 'ERROR'
-//   duration_ms → tiempo de respuesta en milisegundos
-//   error     → null si SUCCESS, traza completa si ERROR
-// ============================================================
+  @@schema("meta")
+}
+
+model UserProfile {
+  id           Int          @id
+  plan_type    String       @default("FREE")
+  created_at   DateTime     @default(now()) @db.Timestamptz(6)
+  usage_events UsageEvent[]
+  user_access  UserAccess[]
+
+  @@schema("meta_billing")
+}
+
+model UsageEvent {
+  request_id String      @id
+  user_id    Int
+  meta_id    String
+  status     String      @default("STARTED")
+  created_at DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at DateTime    @updatedAt @db.Timestamptz(6)
+  user       UserProfile @relation(fields: [user_id], references: [id])
+
+  @@index([user_id, meta_id])
+  @@schema("meta_billing")
+}
+
+model UserAccess {
+  id           Int         @id @default(autoincrement())
+  user_id      Int
+  meta_id      String
+  access_level String      @default("UNLIMITED")
+  granted_at   DateTime    @default(now()) @db.Timestamptz(6)
+  user         UserProfile @relation(fields: [user_id], references: [id])
+
+  @@unique([user_id, meta_id])
+  @@schema("meta_billing")
+}
+
 model executions {
   id          String   @id @default(uuid())
   created_at  DateTime @default(now()) @db.Timestamptz(6)
-  category    String   // 'meta'
-  provider    String   // 'invoice_checker', 'cv_screening_rrhh', etc.
-  environment String   // 'staging' | 'production'
-  status      String   // 'SUCCESS' | 'ERROR'
-  duration_ms Int?     // Tiempo de respuesta en ms
+  category    String
+  provider    String
+  environment String
+  status      String
+  duration_ms Int?
   input       Json?
   output      Json?
-  error       Json?    // null si SUCCESS
+  error       Json?
+
+  @@schema("pruebas_executions")
+}
+
+model exec_assistants {
+  id         String   @id
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  provider   String
+  status     String
+  input      Json?
+  output     Json?
+
+  @@schema("pruebas_executions")
+}
+
+model exec_chats {
+  id         String   @id
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  provider   String
+  status     String
+  input      Json?
+  output     Json?
 
   @@schema("pruebas_executions")
 }
