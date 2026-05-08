@@ -1,5 +1,5 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { ChatOpenAI } from '@langchain/openai';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { metaMemoryService } from '../../meta-memory.service';
 import { BaseMetaSpecialist } from '../../base-specialist';
 import { MetaContext, MetaResult, MetaStreamEvent } from '../../meta.types';
@@ -100,16 +100,16 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
       // ─────────────────────────────────────────
       // PASO 2: MODELO CON TOOL CALLING
       // ─────────────────────────────────────────
-      const apiKey = process.env.OPENAI_API_KEY;
-      const model = new ChatOpenAI({
+      const apiKey = process.env.GEMINI_API_KEY;
+      const model = new ChatGoogleGenerativeAI({
         apiKey,
-        model: 'gpt-4o',
+        model: 'gemini-2.5-pro',
         temperature: 0
       });
 
-      const modelWithTools = model.bindTools([{
-        type: 'function',
-        function: {
+      // Gemini usa el formato nativo function_declarations para tool calling
+      const modelWithTools = (model as any).bindTools([{
+        function_declarations: [{
           name: 'actualizar_hoja_excel',
           description: 'Añade uno o varios registros de gasto a la hoja Excel de seguimiento del proyecto.',
           parameters: {
@@ -141,16 +141,16 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
               insertionMode: {
                 type: 'string',
                 enum: ['append', 'after_value', 'at_index', 'update_row'],
-                description: 'Modo de operación: append=añadir nueva fila al final, after_value=insertar tras una fila concreta, at_index=posición exacta, update_row=EDITAR una fila EXISTENTE (usar cuando el usuario dice "cambiar", "modificar", "corregir" o "actualizar" un valor de una fila existente)'
+                description: 'Modo de operación: append=añadir nueva fila al final, after_value=insertar tras una fila concreta, at_index=posición exacta, update_row=EDITAR una fila EXISTENTE'
               },
               referenceValue: {
                 type: 'string',
-                description: 'Para update_row: el identificador de la fila a editar (ej: "G63", "FAC-2024-001", nombre del proveedor). Para after_value: valor tras el que insertar la nueva fila.'
+                description: 'Para update_row: identificador de la fila a editar. Para after_value: valor tras el que insertar la nueva fila.'
               }
             },
             required: ['registro']
           }
-        }
+        }]
       }]);
 
       // Construir prompt final
@@ -169,12 +169,12 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
       yield { type: 'status', message: 'Auditando justificantes con expediente histórico...' };
       const response = await modelWithTools.invoke(messages);
 
-      // Extraer metadatos de consumo (Tokens)
-      const tokenUsage = (response as any).response_metadata?.tokenUsage;
+      // Extraer metadatos de consumo (Tokens) — Formato Gemini
+      const usageMetadata = (response as any).usage_metadata || (response as any).response_metadata?.usage_metadata;
       const usageInfo = {
-        tokens_input: tokenUsage?.promptTokens || 0,
-        tokens_output: tokenUsage?.completionTokens || 0,
-        model: 'gpt-4o'
+        tokens_input: usageMetadata?.input_tokens || usageMetadata?.prompt_token_count || 0,
+        tokens_output: usageMetadata?.output_tokens || usageMetadata?.candidates_token_count || 0,
+        model: 'gemini-2.5-pro'
       };
 
       // ─────────────────────────────────────────
