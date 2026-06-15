@@ -114,7 +114,7 @@ export async function extractCVsFromFiles(files: GenericFile[]): Promise<Extract
  */
 async function extractCVViaGeminiVision(file: GenericFile, buffer: Buffer): Promise<CVProfile[]> {
   const visionModel = new ChatGoogleGenerativeAI({
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     apiKey: process.env.GEMINI_API_KEY,
     temperature: 0,
   });
@@ -192,7 +192,7 @@ Estructura esperada:
  */
 async function extractCVViaGeminiText(text: string): Promise<CVProfile[]> {
   const model = new ChatGoogleGenerativeAI({
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     apiKey: process.env.GEMINI_API_KEY,
     temperature: 0,
   });

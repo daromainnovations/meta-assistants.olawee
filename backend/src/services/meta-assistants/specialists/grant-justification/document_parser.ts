@@ -81,7 +81,7 @@ export async function extractDataFromFiles(files: GenericFile[]): Promise<Extrac
  */
 async function extractViaGeminiVision(file: GenericFile, buffer: Buffer): Promise<{ text: string; structured: InvoiceData }> {
   const visionModel = new ChatGoogleGenerativeAI({
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     apiKey: process.env.GEMINI_API_KEY,
     temperature: 0,
   });

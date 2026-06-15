@@ -168,7 +168,7 @@ class WebhookService {
                 }
                 else {
                     console.log(`[WebhookService] Routing to META SPECIALIST: "${metaId}"`);
-                    result = await meta_handler_service_1.metaHandlerService.processMessage(transformedBody.session_id, transformedBody.chatInput, '', transformedBody.model || 'gemini-2.0-flash', transformedBody.history, finalDocumentContext, transformedBody.tools, metaId, files);
+                    result = await meta_handler_service_1.metaHandlerService.processMessage(transformedBody.session_id, transformedBody.chatInput, '', transformedBody.model || 'gemini-2.5-flash', transformedBody.history, finalDocumentContext, transformedBody.tools, metaId, files);
                 }
             }
             else {

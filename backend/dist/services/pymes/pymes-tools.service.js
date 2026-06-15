@@ -254,7 +254,7 @@ class PymesToolsService {
                     // Creamos una micro-agencia de Marketing al vuelo dentro de la herramienta usando Gemini veloz o el disponible en tu .env.
                     const model = new google_genai_1.ChatGoogleGenerativeAI({
                         apiKey: process.env.GEMINI_API_KEY,
-                        model: 'gemini-2.0-flash',
+                        model: 'gemini-2.5-flash',
                         temperature: 0.8
                     });
                     const msg = `Actúa como el mejor copywriter comercial del mundo afincado en España.

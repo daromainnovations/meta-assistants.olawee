@@ -27,7 +27,7 @@ export class LinkedInScouterAgent extends BaseMetaSpecialist {
 
         const model = new ChatGoogleGenerativeAI({
             apiKey: process.env.GEMINI_API_KEY,
-            model: modelName || 'gemini-2.0-flash',
+            model: modelName || 'gemini-2.5-flash',
             temperature: 0
         });
 

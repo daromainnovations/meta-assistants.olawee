@@ -22,7 +22,7 @@ export class TemplateFillerAgent extends BaseMetaSpecialist {
             const apiKey = process.env.GEMINI_API_KEY;
             const model = new ChatGoogleGenerativeAI({
                 apiKey,
-                model: modelName || 'gemini-2.0-flash',
+                model: modelName || 'gemini-2.5-flash',
                 temperature: 0
             });
 

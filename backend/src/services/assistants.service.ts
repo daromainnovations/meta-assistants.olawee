@@ -76,7 +76,7 @@ export class AssistantsService {
 
         const transformedBody = {
             chatInput: body.chatInput || body.message || body.userMessage || body.prompt || body.content || '',
-            model: body.model || 'gemini-2.0-flash',
+            model: body.model || 'gemini-2.5-flash',
             session_id: body.session_id,
             systemprompt_doc: body.systemprompt_doc,
             systemPrompt: body.systemPrompt,

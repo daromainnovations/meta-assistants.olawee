@@ -31,7 +31,7 @@ export class CVScreenerAgent extends BaseMetaSpecialist {
   
   protected async execute(context: MetaContext): Promise<MetaResult> {
     const { userMessage, files, sessionId, docContext, metaId, model: modelName } = context;
-    const model = new ChatGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY, model: modelName || 'gemini-2.0-flash', temperature: 0 });
+    const model = new ChatGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY, model: modelName || 'gemini-2.5-flash', temperature: 0 });
 
     try {
       // 1. Extracción de perfiles (Asegurar que siempre procesamos los archivos de la sesión)

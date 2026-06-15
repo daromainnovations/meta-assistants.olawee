@@ -67,7 +67,7 @@ class DocumentAnalysisService {
                     throw new Error('GEMINI_API_KEY is not configured in .env');
                 }
                 const genAI = new generative_ai_1.GoogleGenerativeAI(apiKey);
-                const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+                const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
                 const pdfPart = {
                     inlineData: {
                         data: buffer.toString('base64'),
@@ -156,7 +156,7 @@ class DocumentAnalysisService {
                 throw new Error('GEMINI_API_KEY is not configured in .env');
             }
             const genAI = new generative_ai_1.GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+            const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
             const imagePart = {
                 inlineData: {
                     data: buffer.toString('base64'),

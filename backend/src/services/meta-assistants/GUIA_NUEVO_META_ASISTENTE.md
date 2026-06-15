@@ -27,7 +27,7 @@ export class MiEspecialistaAgent extends BaseMetaSpecialist {
         // 1. Configurar modelo
         const model = new ChatGoogleGenerativeAI({
             apiKey: process.env.GEMINI_API_KEY,
-            model: modelName || 'gemini-2.0-flash'
+            model: modelName || 'gemini-2.5-flash'
         });
 
         // 2. Preparar prompts y contenido (incluyendo archivos si los hay)

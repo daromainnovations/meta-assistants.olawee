@@ -66,7 +66,7 @@ class GrantJustificationAgent {
             throw new Error('GEMINI_API_KEY no configurado.');
         const llm = new google_genai_1.ChatGoogleGenerativeAI({
             apiKey,
-            model: "gemini-2.0-flash",
+            model: "gemini-2.5-flash",
             temperature: 0
         }).bindTools(tools);
         // 4. Prompt Adaptativo

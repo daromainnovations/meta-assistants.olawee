@@ -99,7 +99,7 @@ sistema principal (meta-handler.service.ts) siguiendo esta guía:
   - Descripción de lo que hace: ej. "Recibe extractos bancarios en PDF, los analiza y genera
     un informe de gastos con recomendaciones"
   - Tipo de archivos que recibe: ej. PDFs, Excel, solo texto, sin archivos...
-  - Modelo a usar: ej. gemini-2.0-flash / gpt-4o / claude-3-5-sonnet / etc.
+  - Modelo a usar: ej. gemini-2.5-flash / gpt-4o / claude-3-5-sonnet / etc.
   - Lógica interna: ej. "Primero extrae los datos, luego los clasifica, luego genera
     el informe con un agente de IA"
   - Formato de respuesta esperado: ej. informe en markdown / JSON / texto plano...

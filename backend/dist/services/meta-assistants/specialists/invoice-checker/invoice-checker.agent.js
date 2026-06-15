@@ -99,7 +99,7 @@ No uses el formato de informe estructurado a menos que el usuario lo pida explí
 // ============================================================
 // Modelo fijo para este agente
 // ============================================================
-const INVOICE_CHECKER_MODEL = 'gemini-2.0-flash';
+const INVOICE_CHECKER_MODEL = 'gemini-2.5-flash';
 class InvoiceCheckerAgent {
     /**
      * Extrae todas las filas de un Excel como texto estructurado.

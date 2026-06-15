@@ -13,7 +13,7 @@ async function seed() {
             data: [
                 {
                     category: 'llm',
-                    provider: 'gemini-2.0-flash',
+                    provider: 'gemini-2.5-flash',
                     environment: 'staging',
                     status: 'SUCCESS',
                     duration_ms: 1240,

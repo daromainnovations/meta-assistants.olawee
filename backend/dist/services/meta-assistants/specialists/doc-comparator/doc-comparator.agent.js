@@ -73,7 +73,7 @@ Responde de forma clara, directa y estructurada.`;
 // ============================================================
 // Modelo fijo para este agente
 // ============================================================
-const DOC_COMPARATOR_MODEL = 'gemini-2.0-flash';
+const DOC_COMPARATOR_MODEL = 'gemini-2.5-flash';
 class DocComparatorAgent {
     /**
      * Extrae todas las filas de un Excel como texto estructurado.
