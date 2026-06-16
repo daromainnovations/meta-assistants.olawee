@@ -21,6 +21,8 @@ export class DocumentAnalysisService {
                 extractedText = data.text ? data.text.trim() : '';
                 const info = await parser.getInfo();
                 numpages = info?.total || 0;
+            } catch (innerErr) {
+                console.log(`[DocumentAnalysis] pdf-parse failed (possibly DOMMatrix error). Falling back to Gemini...`);
             } finally {
                 await parser.destroy();
             }

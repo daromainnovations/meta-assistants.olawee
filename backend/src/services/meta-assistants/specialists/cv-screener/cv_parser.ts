@@ -51,7 +51,7 @@ export async function extractCVsFromFiles(files: GenericFile[]): Promise<Extract
   let visionCallCount = 0;
 
   for (const file of files) {
-    const filename = file.originalname.toLowerCase();
+    const filename = (file.originalname || file.name || '').toLowerCase();
 
     if (filename.endsWith('.pdf') || filename.endsWith('.jpg') || filename.endsWith('.jpeg') || filename.endsWith('.png') || filename.endsWith('.docx')) {
         try {
@@ -119,7 +119,8 @@ async function extractCVViaGeminiVision(file: GenericFile, buffer: Buffer): Prom
     temperature: 0,
   });
 
-  const mimeType = file.originalname.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+  const filename = (file.originalname || file.name || '').toLowerCase();
+  const mimeType = filename.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
   const b64Data = buffer.toString('base64');
 
   const message = new HumanMessage({
