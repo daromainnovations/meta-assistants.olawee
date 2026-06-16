@@ -187,7 +187,8 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
         console.log(`[GrantJustifier] 🛠️ Tool Call: actualizar_hoja_excel`, toolCall.args.registro);
 
         // Buscar Excel en sesión
-        const excels = (docContextFiles || []).filter(f => 
+        const sessionFiles = metaMemoryService.getSessionFiles(sessionId, metaId);
+        const excels = (sessionFiles || []).filter(f => 
           (f.originalname || f.name || '').toLowerCase().endsWith('.xlsx') ||
           (f.originalname || f.name || '').toLowerCase().endsWith('.xls')
         );
