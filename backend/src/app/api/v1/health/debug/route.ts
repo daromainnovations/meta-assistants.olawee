@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '../../../../../../models/prisma';
+import prisma from '../../../../../models/prisma';
 
 export async function GET(req: NextRequest) {
     // Obtenemos de forma segura información sobre el entorno de ejecución
