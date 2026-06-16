@@ -127,8 +127,9 @@ export class AssistantsService {
             // Construir representación visual del mensaje (idéntica al Frontend) para persistencia
             let finalChatInput = transformedBody.chatInput;
             if (files && files.length > 0) {
-                const numFiles = files.length;
-                finalChatInput = finalChatInput ? `${finalChatInput}\n\n[Adjuntado: ${numFiles} archivo/s]` : `[Adjuntado: ${numFiles} archivo/s]`;
+                const fileNames = files.map(f => f.originalname || f.name || 'documento').join(', ');
+                const attachmentLabel = files.length === 1 ? `📎 Archivo adjunto: ${fileNames}` : `📎 Archivos adjuntos: ${fileNames}`;
+                finalChatInput = finalChatInput ? `${finalChatInput}\n\n${attachmentLabel}` : attachmentLabel;
             }
 
             result = await metaHandlerService.processMessage(
