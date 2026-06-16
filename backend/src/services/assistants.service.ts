@@ -123,8 +123,16 @@ export class AssistantsService {
         let result: any;
         try {
             console.log(`[AssistantsService] Routing to Specialist Engine: "${metaId}"`);
+            
+            // Construir representación visual del mensaje (idéntica al Frontend) para persistencia
+            let finalChatInput = transformedBody.chatInput;
+            if (files && files.length > 0) {
+                const numFiles = files.length;
+                finalChatInput = finalChatInput ? `${finalChatInput}\n\n[Adjuntado: ${numFiles} archivo/s]` : `[Adjuntado: ${numFiles} archivo/s]`;
+            }
+
             result = await metaHandlerService.processMessage(
-                transformedBody.session_id, transformedBody.chatInput, '',
+                transformedBody.session_id, finalChatInput, '',
                 transformedBody.model, transformedBody.history,
                 finalDocumentContext, transformedBody.tools, metaId, files
             );
