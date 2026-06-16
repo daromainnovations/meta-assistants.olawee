@@ -20,6 +20,10 @@ export interface GenericFile {
     size: number;
     buffer?: Buffer; // Para compatibilidad con legacy/multer
     arrayBuffer?: () => Promise<ArrayBuffer>; // Para Web API File
+    
+    // Propiedades adicionales de Web API File
+    name?: string;
+    type?: string;
 }
 
 export class DocumentService {
@@ -35,7 +39,10 @@ export class DocumentService {
         let lastDocType = 'unknown';
 
         for (const file of files) {
-            console.log(`[DocumentService] File: ${file.originalname} (${file.mimetype}, ${file.size} bytes)`);
+            const fileName = file.originalname || file.name || 'archivo_sin_nombre';
+            const fileMime = file.mimetype || file.type || '';
+            
+            console.log(`[DocumentService] File: ${fileName} (${fileMime}, ${file.size} bytes)`);
             let transcription = '';
             let docType = 'unknown';
 
@@ -51,30 +58,30 @@ export class DocumentService {
                 }
 
                 // 1. Transcribir según tipo de archivo
-                if (file.mimetype === 'application/pdf') {
+                if (fileMime === 'application/pdf') {
                     docType = 'PDF';
                     transcription = await documentAnalysisService.transcribePDF(buffer);
-                } else if (file.mimetype.includes('spreadsheet') || file.mimetype.includes('excel') || file.originalname.endsWith('.xlsx')) {
+                } else if (fileMime.includes('spreadsheet') || fileMime.includes('excel') || fileName.endsWith('.xlsx')) {
                     docType = 'Excel';
                     transcription = await documentAnalysisService.transcribeExcel(buffer);
-                } else if (file.originalname.endsWith('.docx') || file.originalname.endsWith('.doc')) {
+                } else if (fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
                     docType = 'DOC';
                     transcription = await documentAnalysisService.transcribeDoc(buffer);
-                } else if (file.mimetype.startsWith('image/')) {
+                } else if (fileMime.startsWith('image/')) {
                     docType = 'Imagen';
-                    transcription = await documentAnalysisService.describeImageWithGemini(buffer, file.mimetype);
+                    transcription = await documentAnalysisService.describeImageWithGemini(buffer, fileMime);
                 } else {
                     docType = 'Texto';
                     transcription = buffer.toString('utf-8');
                 }
 
                 // Concatenar el contenido formateado de todos los archivos procesados en esta petición
-                allNewContent += `\n\n[Archivo ${docType}: ${file.originalname}]\n${transcription}`;
+                allNewContent += `\n\n[Archivo ${docType}: ${fileName}]\n${transcription}`;
                 lastDocType = docType;
             } catch (error) {
                 const errMsg = error instanceof Error ? error.message : String(error);
-                console.error(`[DocumentService] Error processing file ${file.originalname}:`, errMsg);
-                allNewContent += `\n\n[Archivo ${file.originalname}]: Error procesando este archivo: ${errMsg}`;
+                console.error(`[DocumentService] Error processing file ${fileName}:`, errMsg);
+                allNewContent += `\n\n[Archivo ${fileName}]: Error procesando este archivo: ${errMsg}`;
             }
         }
 
@@ -83,9 +90,9 @@ export class DocumentService {
         return {
             status: 'success',
             provider: provider,
-            fileName: files.length > 1 ? `${files.length} archivos` : (files[0]?.originalname || 'Sin nombre'),
+            fileName: files.length > 1 ? `${files.length} archivos` : (files[0]?.originalname || files[0]?.name || 'Sin nombre'),
             fileSize: files.reduce((acc, f) => acc + f.size, 0),
-            mimeType: files.length > 1 ? 'multiple/files' : (files[0]?.mimetype || 'unknown'),
+            mimeType: files.length > 1 ? 'multiple/files' : (files[0]?.mimetype || files[0]?.type || 'unknown'),
             docType: files.length > 1 ? 'MultiplesArchivos' : lastDocType,
             transcription: allNewContent,
             contentPreview: allNewContent.substring(0, 100) + '...',

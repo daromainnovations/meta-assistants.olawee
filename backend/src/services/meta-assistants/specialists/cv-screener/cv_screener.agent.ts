@@ -52,7 +52,7 @@ export class CVScreenerAgent extends BaseMetaSpecialist {
         - New Extracted: ${extractedContext.length > 0 ? 'YES' : 'NO'}
         - Previous DocContext: ${docContext?.length || 0} chars`);
 
-      const lower = userMessage.toLowerCase();
+      const lower = (userMessage || '').toLowerCase();
       
       // Disparador de Ranking:
       const isRankingRequest = (lower.includes('excel') || lower.includes('pdf') || lower.includes('genera el ranking') || lower.includes('haz el ranking')) ||
