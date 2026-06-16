@@ -140,8 +140,9 @@ export class MetaMemoryService {
      */
     async saveMessage(sessionId: string, metaId: string, type: 'human' | 'ai' | 'system', content: string) {
         const db = prisma;
+        console.log(`[MetaMemory-DEBUG] Intentando guardar mensaje tipo '${type}' para sesión: ${sessionId}`);
         try {
-            await db.mensajesmeta.create({
+            const savedMsg = await db.mensajesmeta.create({
                 data: {
                     session_id: sessionId,
                     message: {
@@ -152,9 +153,9 @@ export class MetaMemoryService {
                     }
                 }
             });
-            console.log(`[MetaMemory] Isolated message (${type}) saved for: ${sessionId} (${metaId})`);
-        } catch (error) {
-            console.error(`[MetaMemory] Error saving message:`, error);
+            console.log(`[MetaMemory-DEBUG] ✅ Mensaje guardado exitosamente con ID: ${savedMsg.id.toString()}`);
+        } catch (error: any) {
+            console.error(`[MetaMemory-DEBUG] ❌ Error CRÍTICO guardando mensaje en Prisma:`, error.message || error);
         }
     }
 
