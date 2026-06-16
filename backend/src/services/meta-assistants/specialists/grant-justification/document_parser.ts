@@ -29,12 +29,12 @@ export async function extractDataFromFiles(files: GenericFile[]): Promise<Extrac
   let visionCallCount = 0;
 
   for (const file of files) {
-    const filename = file.originalname.toLowerCase();
+    const filename = (file.originalname || file.name || '').toLowerCase();
     
     // Obtener Buffer unificado
     const buffer = file.buffer || (file.arrayBuffer ? Buffer.from(await file.arrayBuffer()) : null);
     if (!buffer) {
-        console.warn(`[DocumentParser] ⚠️ No se pudo obtener el buffer para ${file.originalname}`);
+        console.warn(`[DocumentParser] ⚠️ No se pudo obtener el buffer para ${filename}`);
         continue;
     }
 
@@ -47,13 +47,13 @@ export async function extractDataFromFiles(files: GenericFile[]): Promise<Extrac
         }
         visionCallCount++;
 
-        console.log(`[DocumentParser] 🔍 [${visionCallCount}] Extrayendo con Gemini Vision: ${file.originalname}`);
+        console.log(`[DocumentParser] 🔍 [${visionCallCount}] Extrayendo con Gemini Vision: ${filename}`);
         const { text, structured } = await extractViaGeminiVision(file, buffer);
-        result.pdfTexts.push({ filename: file.originalname, text, structured });
-        console.log(`[DocumentParser] ✅ Extraído: ${file.originalname} | Factura: ${structured?.numFactura || 'N/A'} | Total: ${structured?.total || 'N/A'}`);
+        result.pdfTexts.push({ filename: filename, text, structured });
+        console.log(`[DocumentParser] ✅ Extraído: ${filename} | Factura: ${structured?.numFactura || 'N/A'} | Total: ${structured?.total || 'N/A'}`);
       } catch (error: any) {
-        console.error(`[DocumentParser] ❌ Error OCR ${file.originalname}: ${error.message}`);
-        result.pdfTexts.push({ filename: file.originalname, text: '(Error de lectura del documento)' });
+        console.error(`[DocumentParser] ❌ Error OCR ${filename}: ${error.message}`);
+        result.pdfTexts.push({ filename: filename, text: '(Error de lectura del documento)' });
       }
     }
     // === Excel ===
@@ -65,9 +65,9 @@ export async function extractDataFromFiles(files: GenericFile[]): Promise<Extrac
           const sheet = workbook.Sheets[sheetName];
           sheetsData[sheetName] = xlsx.utils.sheet_to_json(sheet, { header: 1 });
         }
-        result.excelData.push({ filename: file.originalname, sheets: sheetsData });
+        result.excelData.push({ filename: filename, sheets: sheetsData });
       } catch (error: any) {
-        console.error(`[DocumentParser] ❌ Error Excel ${file.originalname}: ${error.message}`);
+        console.error(`[DocumentParser] ❌ Error Excel ${filename}: ${error.message}`);
       }
     }
   }
@@ -86,7 +86,8 @@ async function extractViaGeminiVision(file: GenericFile, buffer: Buffer): Promis
     temperature: 0,
   });
 
-  const mimeType = file.originalname.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+  const filename = (file.originalname || file.name || '').toLowerCase();
+  const mimeType = filename.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
   const b64Data = buffer.toString('base64');
 
   const message = new HumanMessage({

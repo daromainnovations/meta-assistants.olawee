@@ -43,10 +43,10 @@ export abstract class BaseMetaSpecialist {
      */
     protected categorizeFiles(files: GenericFile[]) {
         return {
-            excels: files.filter(f => f.originalname.toLowerCase().endsWith('.xlsx') || f.originalname.toLowerCase().endsWith('.xls') || f.originalname.toLowerCase().endsWith('.csv')),
-            pdfs: files.filter(f => f.mimetype === 'application/pdf' || f.originalname.toLowerCase().endsWith('.pdf')),
-            images: files.filter(f => f.mimetype.startsWith('image/')),
-            docs: files.filter(f => f.originalname.toLowerCase().endsWith('.docx') || f.originalname.toLowerCase().endsWith('.doc'))
+            excels: files.filter(f => (f.originalname || f.name || '').toLowerCase().endsWith('.xlsx') || (f.originalname || f.name || '').toLowerCase().endsWith('.xls') || (f.originalname || f.name || '').toLowerCase().endsWith('.csv')),
+            pdfs: files.filter(f => (f.mimetype || f.type) === 'application/pdf' || (f.originalname || f.name || '').toLowerCase().endsWith('.pdf')),
+            images: files.filter(f => (f.mimetype || f.type || '').startsWith('image/')),
+            docs: files.filter(f => (f.originalname || f.name || '').toLowerCase().endsWith('.docx') || (f.originalname || f.name || '').toLowerCase().endsWith('.doc'))
         };
     }
 }

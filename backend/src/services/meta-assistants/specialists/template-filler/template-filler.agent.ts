@@ -72,10 +72,11 @@ export class TemplateFillerAgent extends BaseMetaSpecialist {
                 const buffer = template.buffer || (template.arrayBuffer ? Buffer.from(await template.arrayBuffer()) : null);
                 
                 if (buffer) {
-                    if (template.originalname.endsWith('.docx')) {
+                    const fileName = (template.originalname || template.name || '').toLowerCase();
+                    if (fileName.endsWith('.docx')) {
                         const structure = await getDocxStructure(buffer);
                         structureList = structure.map((b: any) => `[${b.id}] ${b.text.substring(0, 100)}${b.text.length > 100 ? '...' : ''}`).join('\n');
-                    } else if (template.originalname.endsWith('.xlsx')) {
+                    } else if (fileName.endsWith('.xlsx')) {
                         const structure = await getXlsxStructure(buffer);
                         structureList = structure.map((b: any) => `[${b.id}] ${b.text}`).join('\n');
                     }
@@ -93,10 +94,11 @@ export class TemplateFillerAgent extends BaseMetaSpecialist {
             4. PROHIBIDO DUDAR: No pidas confirmación si ya tienes una instrucción clara.`;
 
             const history = context.history.filter(m => m.content && m.content.toString().trim() !== "");
+            const templateName = templates.length > 0 ? (templates[0].originalname || templates[0].name || '') : 'Sin Plantilla';
 
             const messages = [
                 ...history,
-                new HumanMessage(`${SYSTEM_PROMPT}\n\nPLANTILLA: ${templates[0].originalname}\nRADIOGRAFÍA DEL DOC:\n${structureList || docContext}\n\nInstrucción actual: ${userMessage || 'Analiza y presenta la estructura'}`)
+                new HumanMessage(`${SYSTEM_PROMPT}\n\nPLANTILLA: ${templateName}\nRADIOGRAFÍA DEL DOC:\n${structureList || docContext}\n\nInstrucción actual: ${userMessage || 'Analiza y presenta la estructura'}`)
             ];
 
             const response = await modelWithTools.invoke(messages);
@@ -114,7 +116,7 @@ export class TemplateFillerAgent extends BaseMetaSpecialist {
                     const end = resContent.lastIndexOf('}');
                     const parsed = JSON.parse(resContent.substring(start, end + 1));
                     if (parsed && Object.keys(parsed).length > 0) {
-                        toolCall = { name: 'generar_documento_rellenado', args: { filename: templates[0].originalname, data: parsed.data || parsed } };
+                        toolCall = { name: 'generar_documento_rellenado', args: { filename: templateName, data: parsed.data || parsed } };
                     }
                 } catch (e) {}
             }
@@ -122,22 +124,23 @@ export class TemplateFillerAgent extends BaseMetaSpecialist {
             if (toolCall && toolCall.name === 'generar_documento_rellenado') {
                 const requestedFile = toolCall.args.filename.toLowerCase().replace(/[–—]/g, '-');
                 const templateFile = templates.find(t => {
-                    const original = t.originalname.toLowerCase().replace(/[–—]/g, '-');
+                    const original = (t.originalname || t.name || '').toLowerCase().replace(/[–—]/g, '-');
                     return original === requestedFile || original.includes(requestedFile);
                 }) || templates[0];
                 
-                console.info(`[TemplateFiller] 🚀 Ejecutando llenado para: ${templateFile.originalname}`);
+                const templateFileName = templateFile.originalname || templateFile.name || 'plantilla_desconocida';
+                console.info(`[TemplateFiller] 🚀 Ejecutando llenado para: ${templateFileName}`);
                 console.info(`[TemplateFiller] 📦 Datos: ${JSON.stringify(toolCall.args.data)}`);
 
                 const templateBuffer = templateFile.buffer || (templateFile.arrayBuffer ? Buffer.from(await templateFile.arrayBuffer()) : null);
                 if (!templateBuffer) throw new Error("No se pudo obtener el buffer de la plantilla.");
 
-                const processedBuffer = templateFile.originalname.toLowerCase().endsWith('.xlsx')
+                const processedBuffer = templateFileName.toLowerCase().endsWith('.xlsx')
                     ? await fillXlsxTemplate(templateBuffer, toolCall.args.data)
                     : await fillDocxTemplate(templateBuffer, toolCall.args.data);
 
                 const timestamp = new Date().getTime();
-                const newFilename = `rellenado_${timestamp}_${templateFile.originalname.replace(/\s+/g, '_')}`;
+                const newFilename = `rellenado_${timestamp}_${templateFileName.replace(/\s+/g, '_')}`;
 
                 return {
                     status: 'success',

@@ -187,11 +187,11 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
         console.log(`[GrantJustifier] 🛠️ Tool Call: actualizar_hoja_excel`, toolCall.args.registro);
 
         // Buscar Excel en sesión
-        const sessionFiles = metaMemoryService.getSessionFiles(sessionId, metaId);
-        const excelFile = sessionFiles.find(f =>
-          f.originalname.toLowerCase().endsWith('.xlsx') ||
-          f.originalname.toLowerCase().endsWith('.xls')
+        const excels = (docContextFiles || []).filter(f => 
+          (f.originalname || f.name || '').toLowerCase().endsWith('.xlsx') ||
+          (f.originalname || f.name || '').toLowerCase().endsWith('.xls')
         );
+        const excelFile = excels[0];
 
         if (!excelFile) {
           return {
@@ -221,7 +221,8 @@ export class GrantJustificationAgent extends BaseMetaSpecialist {
 
         const ts = Date.now();
         const isUpdate = toolCall.args.insertionMode === 'update_row';
-        const newFilename = `justificado_${ts}_${excelFile.originalname.replace(/\s+/g, '_')}`;
+        const originalFileName = excelFile.originalname || excelFile.name || 'documento';
+        const newFilename = `justificado_${ts}_${originalFileName.replace(/\s+/g, '_')}`;
         const actionVerb = isUpdate ? 'actualizado' : 'registrado';
         const rowRef = toolCall.args.referenceValue ? ` (fila: ${toolCall.args.referenceValue})` : '';
         writeLog(`Excel generado: ${newFilename} | Modo: ${toolCall.args.insertionMode || 'append'}`);

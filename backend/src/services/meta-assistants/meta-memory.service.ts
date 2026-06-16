@@ -167,7 +167,7 @@ export class MetaMemoryService {
         
         const key = this.getCacheKey(sessionId, metaId);
         const existing = this.sessionFilesCache.get(key) || [];
-        const filteredExisting = existing.filter(ex => !files.some(f => f.originalname === ex.originalname));
+        const filteredExisting = existing.filter(ex => !files.some(f => (f.originalname || f.name) === (ex.originalname || ex.name)));
         
         this.sessionFilesCache.set(key, [...filteredExisting, ...files]);
         this.refreshSession(sessionId, metaId);
