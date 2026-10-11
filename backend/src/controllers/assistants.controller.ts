@@ -18,6 +18,16 @@ export class AssistantsController {
         try {
             console.log(`\n[API Controller] 🚀 Processing API request for Assistant: [${metaId}]`);
 
+            // 🛡️ Compliance EU AI Act: Asistentes de alto riesgo en RRHH deshabilitados
+            const disabledAssistants = ['cv_screening_rrhh', 'linkedin_scouter'];
+            if (disabledAssistants.includes(metaId)) {
+                console.warn(`[API Controller] 🛑 Rechazada petición a asistente deshabilitado por EU AI Act: [${metaId}]`);
+                return NextResponse.json(
+                    { status: 'error', message: 'Forbidden: Assistant disabled by EU AI Act compliance policy' },
+                    { status: 403 }
+                );
+            }
+
             // 1. 🔑 Verificación de API Key con soporte Dual-Key determinista (Punto 5)
             const apiKey = req.headers.get('x-api-key');
 
