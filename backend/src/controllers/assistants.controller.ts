@@ -60,14 +60,20 @@ export class AssistantsController {
             if (contentType.includes('multipart/form-data')) {
                 const formData = await req.formData();
 
-                // Extraer todos los campos que no sean archivos
-                formData.forEach((value, key) => {
+                for (const [key, value] of formData.entries()) {
                     if (value instanceof File) {
-                        files.push(value);
+                        const buffer = Buffer.from(await value.arrayBuffer());
+
+                        files.push({
+                            originalname: value.name,
+                            mimetype: value.type,
+                            size: value.size,
+                            buffer
+                        });
                     } else {
                         body[key] = value;
                     }
-                });
+                }
             } else {
                 // Manejo de JSON directo
                 body = await req.json();
@@ -77,8 +83,36 @@ export class AssistantsController {
             // Jamás se confía en el user_id recibido en el payload del navegador.
             body.user_id = authenticatedUserId;
 
+            // Derivar userId EXCLUSIVAMENTE de authenticatedUserId (nunca del body)
+            const parsedUserId = Number.parseInt(authenticatedUserId, 10);
+            const userId = Number.isNaN(parsedUserId) ? undefined : parsedUserId;
+
+            // Restaurar requestId para idempotencia y trazabilidad de cuotas
+            const requestId =
+                body.request_id ||
+                body.requestId ||
+                req.headers.get('x-request-id') ||
+                undefined;
+
             // 5. Delegar a la capa de servicio de asistentes
-            const result = await assistantsService.executeAssistant(metaId, body, files as any);
+            const result = await assistantsService.executeAssistant(
+                metaId,
+                body,
+                files as any,
+                userId,
+                requestId
+            );
+
+            // Si el resultado es un ReadableStream (Server-Sent Events), devolverlo directamente con cabeceras
+            if (result instanceof ReadableStream) {
+                return new NextResponse(result, {
+                    headers: {
+                        'Content-Type': 'text/event-stream',
+                        'Cache-Control': 'no-cache, no-transform',
+                        'Connection': 'keep-alive'
+                    }
+                });
+            }
 
             return NextResponse.json(result);
 
