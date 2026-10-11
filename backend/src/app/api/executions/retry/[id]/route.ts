@@ -1,11 +1,17 @@
-import { NextRequest } from 'next/server';
-import { executionController } from '../../../../../controllers/executions.controller';
+import { NextResponse } from 'next/server';
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  
-  return executionController.retry(id);
+/**
+ * 🛡️ SEGURIDAD P0 (Problema 5): Endpoint de reintento de ejecuciones bloqueado.
+ * Anteriormente permitía a cualquier usuario reejecutar pipelines de IA sin autenticación.
+ *
+ * Se bloquea directamente con 403 Forbidden sin dependencias de controladores ni imports.
+ */
+export async function POST() {
+    return NextResponse.json(
+        {
+            status: 'error',
+            message: 'Forbidden: Endpoint de reintento deshabilitado.'
+        },
+        { status: 403 }
+    );
 }

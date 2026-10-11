@@ -1,6 +1,18 @@
-import { NextRequest } from 'next/server';
-import { executionController } from '../../../controllers/executions.controller';
+import { NextResponse } from 'next/server';
 
-export async function GET(req: NextRequest) {
-  return executionController.list(req);
+/**
+ * 🛡️ SEGURIDAD P0 (Problema 4): Endpoint de ejecuciones bloqueado.
+ * Anteriormente este endpoint era público y exponía inputs, outputs y métricas de IA.
+ *
+ * Al no existir consumidores legítimos de cliente, se bloquea directamente con 403 Forbidden
+ * sin dependencias ni imports de controladores.
+ */
+export async function GET() {
+    return NextResponse.json(
+        {
+            status: 'error',
+            message: 'Forbidden: Endpoint administrativo no disponible.'
+        },
+        { status: 403 }
+    );
 }
